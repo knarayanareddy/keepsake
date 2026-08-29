@@ -1,0 +1,12 @@
+# foundry build artefacts — lib/ is one `forge install` away from being committed by accident
+/out/
+/cache/
+/lib/
+# NB: broadcast/ is deliberately NOT ignored — HANDOVER.md treats committed deploy
+# artifacts as provenance ("we did deploy this exact source"). Don't add it back.
+# deploy output (addresses are pasted into the UI / committed by hand if you want them public)
+/web/addresses.json
+# misc
+node_modules/
+.DS_Store
+*.log

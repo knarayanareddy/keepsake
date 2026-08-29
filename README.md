@@ -3,28 +3,70 @@
 A 16×16 on-chain arena. **The World is the only attester.** You cannot certify yourself — you can only be witnessed.
 
 - `pact` — one-way, instant. A declares trust in B. B never agreed.
-- `spare` — you had the shot; you didn’t take it. UID mints in that tx.
+- `spare` — you had the shot; you didn't take it. UID mints in that tx.
 - `shoot` — if you had a pact on them, this is `Betrayal` and `refUID` points at the Pact.
 
-Portable primitive: any later contract can `HonorLog.verify(uid)`.
+Portable primitive: any later contract can `HonorLog.verify(uid)` — and it now returns the
+`attester`, so a verifier can require provenance, not just existence.
 
-## Deploy (Monad)
+## The rules the contract actually enforces
+
+Guardrails, so the "facts" are facts and the demo can't be bricked from outside:
+
+| Rule | Enforcement |
+|---|---|
+| Only the World attests | `attest()` is `only-world`; `setWorld()` is **write-once** (`WorldAlreadySet`) so the deployer can never re-point the attester and forge a fact |
+| A `spare` must be real | the victim has to be at `≤ SPARE_WINDOW` (2) hp **and still armed**, else `NotKillShot()`. You cannot mint `spared` by clicking a healthy neighbour |
+| A pact belongs to one match | `pactMatch[uid]` is stamped at mint; a shot only becomes a Betrayal if that pact was made in *this* match, so `refUID` never dangles into an old match |
+| A pair holds one live pact | second `pact()` reverts `AlreadyPacted()` (it used to stack attestations and orphan a UID) |
+| Conduct is rollup, once | `sealMe()` reverts `AlreadySealed()` per (player, match). Optional — the demo never needs it |
+| Nobody else can rotate the arena | `startMatch()` is owner-only (`NotOwner()`); on a public testnet an open one lets any wallet freeze every live player |
+| Honoured pacts are reversible | sparing someone you had pledged to bumps `pactKept`; betraying *that* pact takes the credit back, so "kept" and "broke" can't both be claimed |
+
+Deliberately **not** enforced: a kill writes no attestation (only a *betrayed* kill does). See
+`DEEPDIVE.md` §C2/§6 — it is a position, not an oversight: the log records what cost the actor something.
+
+## Deploy (Monad testnet, chain id `10143`)
 
 ```bash
-# from a foundry-monad checkout, or:
-curl -L https://foundry.paradigm.xyz | bash && foundryup
+forge install foundry-rs/forge-std
+export MONAD_RPC=https://testnet-rpc.monad.xyz
 
 forge script script/Deploy.s.sol:Deploy --rpc-url $MONAD_RPC --broadcast --private-key $PK
 ```
 
-Paste the two addresses into the UI (Deploy box). Serve `web/`:
+That prints both addresses, writes `web/addresses.json` (the UI loads it automatically — no
+pasting at the projector), and prints a ready-to-open URL with the addresses in the query string.
+
+Faucet: https://faucet.monad.xyz · explorer: https://testnet.monadvision.com
+Use the **testnet**. Mainnet is live (chain id `143`) and MON there is real money; this app is gas-only by design.
+
+Source-verify so judges can call `verify()` themselves in the explorer:
+
+```bash
+forge verify-contract $HONORLOG contracts/HonorLog.sol:HonorLog \
+  --chain 10143 --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org
+```
+
+## Play it
 
 ```bash
 python3 -m http.server 8765 --directory web
 ```
 
-Two browser profiles = two players. Click board to move (1 step). Click a body to target. Pact / Spare / Shoot.
+Two browser profiles (or one profile + a second wallet) = two players. `web/vendor/ethers.min.js`
+is committed, so the page works with **no network** — no CDN between you and the demo.
+
+Click a cell to move (1 Chebyshev step), click a body to target it, then Pact / Spare / Shoot.
+`Spare` needs the other player wounded and armed, so **wound them before you pact them** — the
+first shot after a pact is the betrayal. Click any UID in the log to run it through `verify()`.
+
+## Tests
+
+`forge test` runs `test/Keepsake.t.sol`: the demo path, the `refUID` chain, and one regression per
+guard above.
 
 ## Pitch line
 
-> A future DAO can require `spared ≥ 1` without me building that DAO. We didn’t ship a leaderboard. We shipped a factory for facts about people.
+> A future DAO can require `spared ≥ 1` without me building that DAO. We didn't ship a leaderboard.
+> We shipped a factory for facts about people.

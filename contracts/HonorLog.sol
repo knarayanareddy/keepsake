@@ -54,14 +54,26 @@ contract HonorLog {
     error NotWorld();
     error NotOwner();
     error UnknownUID();
+    /// @notice `world` is write-once: the attester can never be re-pointed after it is set.
+    error WorldAlreadySet();
 
     constructor() {
         owner = msg.sender;
     }
 
+    /// @notice Write-once. Without the one-shot guard the owner could point `world` at
+    ///         an attacker contract and mint any "fact about anyone" (deep dive C3).
     function setWorld(address w) external {
         if (msg.sender != owner) revert NotOwner();
+        if (world != address(0)) revert WorldAlreadySet();
+        if (w == address(0)) revert NotWorld();
         world = w;
+    }
+
+    /// @notice Optional, one-way: give up the right to ever call setWorld again.
+    function renounceOwner() external {
+        if (msg.sender != owner) revert NotOwner();
+        owner = address(0);
     }
 
     function attest(
@@ -118,14 +130,18 @@ contract HonorLog {
         return ofSubject[subject][i];
     }
 
-    /// Portable primitive: any future contract can call this.
+    /// @notice Portable primitive: any future contract can call this.
+    /// @dev    Returns `attester` so a consumer can require provenance
+    ///         (`attester == world`) without a second `get()` call — "verified"
+    ///         vs "verified-as-to-provenance". Returns false rather than reverting
+    ///         so callers can `if (!ok) revert` in one eth_call.
     function verify(bytes32 uid)
         external
         view
-        returns (bool ok, bytes32 schema, address subject, address other, uint8 kind, bytes32 refUID)
+        returns (bool ok, bytes32 schema, address attester, address subject, address other, uint8 kind, bytes32 refUID)
     {
         Attestation memory a = attestations[uid];
-        if (a.uid == bytes32(0) || a.revoked) return (false, 0, address(0), address(0), 0, 0);
-        return (true, a.schema, a.subject, a.other, a.kind, a.refUID);
+        if (a.uid == bytes32(0) || a.revoked) return (false, bytes32(0), address(0), address(0), address(0), 0, bytes32(0));
+        return (true, a.schema, a.attester, a.subject, a.other, a.kind, a.refUID);
     }
 }

@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KEEPSAKE</title>
+  <title>KEEPSAKE — the World is the only attester</title>
+  <meta name="description" content="A 16×16 on-chain arena on Monad. Pact, spare, or betray; only the World can attest, and the UID outlives the match." />
+  <meta property="og:title" content="KEEPSAKE" />
+  <meta property="og:description" content="You cannot certify yourself. You can only be witnessed." />
+  <meta property="og:type" content="website" />
   <style>
     :root {
       --bg: #07080c;
@@ -27,7 +31,9 @@
     }
     h1 { font-size: 1.1rem; letter-spacing: 0.28em; font-weight: 500; margin: 0; }
     .tag { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.08em; }
-    main { display: grid; grid-template-columns: 1fr 320px; gap: 0; max-width: 1100px; margin: 0 auto; }
+    .tag.warn { color: var(--blood); }
+    .tag.live { color: var(--ok); }
+    main { display: grid; grid-template-columns: 1fr 340px; gap: 0; max-width: 1180px; margin: 0 auto; }
     @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
     #boardWrap { padding: 1.25rem; }
     #board {
@@ -42,12 +48,20 @@
     }
     .cell.me { background: #1a2430; }
     .cell.them { background: #241818; }
+    .cell.pacted { box-shadow: inset 0 0 0 1px var(--gold); }
+    .cell.spared { box-shadow: inset 0 0 0 1px var(--ok); }
+    .cell.ghost { opacity: 0.35; }
+    .cell:hover { background: #10131b; }
     .dot {
       position: absolute; inset: 18%; border-radius: 50%;
       background: var(--gold);
     }
     .dot.other { background: var(--blood); }
     .dot.dead { background: #333; opacity: 0.4; }
+    .hp {
+      position: absolute; bottom: 2px; left: 2px; font-size: 8px;
+      font-family: ui-monospace, monospace; color: var(--dim); line-height: 1;
+    }
     aside {
       border-left: 1px solid var(--line);
       padding: 1.25rem;
@@ -59,8 +73,10 @@
       font-family: inherit; letter-spacing: 0.06em; cursor: pointer; margin: 0.15rem 0.15rem 0.15rem 0;
     }
     button:hover { background: #16140e; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
     button.danger { border-color: var(--blood); }
     button.ok { border-color: var(--ok); }
+    button.mini { padding: 0.2rem 0.4rem; font-size: 0.7rem; }
     input, select {
       width: 100%; background: #0c0e14; color: var(--ink);
       border: 1px solid var(--line); padding: 0.4rem; margin: 0.3rem 0 0.7rem;
@@ -71,47 +87,69 @@
       color: var(--dim); max-height: 220px; overflow: auto;
       white-space: pre-wrap; line-height: 1.45;
     }
-    .uid { color: var(--gold); word-break: break-all; }
+    .log .rec { border-bottom: 1px solid #12141c; padding: 0.25rem 0; }
+    .log .rec:hover { background: #0c0e14; }
+    .uid { color: var(--gold); word-break: break-all; cursor: pointer; }
+    .err { color: var(--blood); }
     h2 { font-size: 0.7rem; letter-spacing: 0.2em; color: var(--dim); font-weight: 500; }
     .stat { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.8rem; }
+    .stat b { color: var(--ink); font-weight: 400; }
   </style>
 </head>
 <body>
   <header>
     <h1>KEEPSAKE</h1>
-    <div class="tag">THE WORLD IS THE ONLY ATTESTER · YOU CANNOT CERTIFY YOURSELF</div>
+    <div class="tag" id="netTag">THE WORLD IS THE ONLY ATTESTER · YOU CANNOT CERTIFY YOURSELF</div>
   </header>
   <main>
     <div id="boardWrap">
       <div id="board"></div>
-      <p class="tag" style="margin-top:0.8rem">Click a cell: move if empty (1 step), else target that player. Adjacent only.</p>
+      <p class="tag" id="hint" style="margin-top:0.8rem">Click a cell: move if empty (1 step), else target that player. Adjacent only.</p>
     </div>
     <aside>
       <button id="connect">Connect</button>
-      <button id="spawn">Spawn</button>
+      <button id="spawn" disabled>Spawn</button>
       <div class="stat"><span>me</span><span id="meAddr">—</span></div>
       <div class="stat"><span>hp / ammo</span><span id="vitals">—</span></div>
-      <div class="stat"><span>target</span><span id="tgt">—</span></div>
+      <div class="stat"><span>kept / spared / broke</span><span id="honour">—</span></div>
+      <div class="stat"><span>match</span><span id="matchTag">—</span></div>
+      <div class="stat"><span>on board</span><span id="roster">—</span></div>
+      <h2>TARGET</h2>
+      <div class="stat"><span id="tgt">none</span><span id="tgtState">—</span></div>
+      <button class="mini" id="clearTarget" style="display:none">clear target</button>
       <h2>VERBS</h2>
-      <button class="ok" id="pact">Pact →</button>
-      <button class="ok" id="spare">Spare</button>
-      <button class="danger" id="shoot">Shoot</button>
-      <button id="seal">Seal me</button>
+      <button class="ok" id="pact" disabled>Pact →</button>
+      <button class="ok" id="spare" disabled>Spare</button>
+      <button class="danger" id="shoot" disabled>Shoot</button>
+      <button id="seal" disabled>Seal me</button>
       <h2>HONORLOG</h2>
-      <div class="log" id="log">attestations appear the instant a verb fires.</div>
+      <div class="log" id="log">attestations appear the instant a verb fires. click a UID to load it into verify().</div>
+      <h2>MY RECORDS</h2>
+      <button class="mini" id="mine">load my UIDs</button>
       <h2>VERIFY UID</h2>
       <input id="uidIn" placeholder="0x…" />
-      <button id="verify">verify()</button>
+      <button id="verify" disabled>verify()</button>
       <div class="log uid" id="verifyOut"></div>
+      <h2>WATCH</h2>
+      <input id="watchIn" placeholder="opponent address to pin to the board" />
+      <button class="mini" id="watchBtn">watch</button>
       <h2>DEPLOY</h2>
       <input id="worldIn" placeholder="World address" />
       <input id="logIn" placeholder="HonorLog address" />
+      <input id="blockIn" placeholder="deploy block (event scan start, default 0)" />
       <button id="saveAddr">Use addresses</button>
     </aside>
   </main>
   <script type="module">
-    import { BrowserProvider, Contract, Interface } from "https://esm.sh/ethers@6.13.4";
+    // ── ethers: local copy first, CDN second. A dead CDN must not kill the demo. ──
+    let ethers;
+    try { ethers = await import("./vendor/ethers.min.js"); }
+    catch { ethers = await import("https://esm.sh/ethers@6.13.4"); }
+    const { BrowserProvider, Contract } = ethers;
 
+    // The ABIs carry `error` fragments on purpose: with them ethers v6 decodes
+    // `e.revert.name`, so a revert tells the player what they did instead of
+    // "execution reverted". Update these whenever the contracts change.
     const WORLD_ABI = [
       "function currentMatch() view returns (bytes32)",
       "function spawn()",
@@ -120,19 +158,54 @@
       "function spare(address other)",
       "function shoot(address other)",
       "function sealMe()",
+      "function livePact(address from,address to) view returns (bytes32)",
+      "function SPARE_WINDOW() view returns (uint8)",
       "function viewPlayer(address) view returns (tuple(uint8 x,uint8 y,uint8 hp,uint8 ammo,bool alive,bool joined,bytes32 matchId,uint16 pactKept,uint16 pactBroken,uint16 spared))",
       "event Spawned(bytes32 matchId,address player,uint8 x,uint8 y)",
       "event Moved(address player,uint8 x,uint8 y)",
       "event Shot(address shooter,address victim,uint8 hpLeft,bool killed)",
+      "error NotInMatch()", "error Dead()", "error Oob()", "error NoAmmo()",
+      "error SamePlayer()", "error NotAdjacent()", "error AlreadyLive()",
+      "error NotKillShot()", "error AlreadyPacted()", "error AlreadySealed()", "error NotOwner()",
     ];
     const LOG_ABI = [
       "function get(bytes32 uid) view returns (tuple(bytes32 uid,bytes32 schema,address attester,address subject,address other,bytes32 matchId,uint64 blockNumber,bytes32 refUID,uint8 kind,uint8 extra,bool revoked))",
-      "function verify(bytes32 uid) view returns (bool ok,bytes32 schema,address subject,address other,uint8 kind,bytes32 refUID)",
+      "function verify(bytes32 uid) view returns (bool ok,bytes32 schema,address attester,address subject,address other,uint8 kind,bytes32 refUID)",
       "function countOf(address) view returns (uint256)",
       "function uidAt(address,uint256) view returns (bytes32)",
+      "function world() view returns (address)",
       "event Attested(bytes32 indexed uid,bytes32 indexed schema,address indexed subject,address attester,address other,bytes32 matchId,uint8 kind,bytes32 refUID)",
+      "error NotWorld()", "error UnknownUID()", "error WorldAlreadySet()",
     ];
     const KIND = { 1: "PACT", 2: "SPARE", 3: "BETRAYAL", 4: "CONDUCT" };
+    // Fallback for when the decode path is unavailable (raw revert data, no ABI match).
+    const SEL = {
+      "0xc362051c": "out of ammo — you spent it on a spare or a shot",
+      "0x7b177da9": "not in this match — hit Spawn to re-enter",
+      "0x82c4767b": "you are dead — hit Spawn to re-enter",
+      "0xdef29dac": "already live in this match",
+      "0x4c00cb90": "illegal step — 1 cell only, and not nowhere",
+      "0x4c83fae9": "not adjacent — move next to them first",
+      "0x831420e8": "that is you",
+      "0x12b15165": "not a kill shot — they must be ≤2 hp and still armed",
+      "0x4fdbd902": "a live pact already covers them",
+      "0x423311c0": "conduct already sealed for this match",
+      "0x30cd7471": "only the deployer may rotate the match",
+      "0xc9e1b5d0": "not the World — only the attester contract may write",
+      "0x09cae2e9": "no such attestation UID",
+      "0x9589c7b8": "the attester is already pinned (write-once)",
+    };
+    // Monad testnet. Mainnet is chainId 143 and real money — never silently land there.
+    // NB: JSON-RPC chain ids are *hex strings*; compare numerically or every connect
+    // re-prompts a chain switch (a string/number mixup here is a real bug, not a nit).
+    const MONAD_CHAIN = "0x279f";             // 10143
+    const MONAD_PARAMS = {
+      chainId: MONAD_CHAIN,
+      chainName: "Monad Testnet",
+      nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
+      rpcUrls: ["https://testnet-rpc.monad.xyz"],
+      blockExplorerUrls: ["https://testnet.monadvision.com"],
+    };
 
     const board = document.getElementById("board");
     const cells = [];
@@ -145,130 +218,308 @@
         cells.push(d);
       }
     }
-
-    let provider, signer, world, honor, me, target;
-    const seen = new Map(); // address -> player snapshot
-
     const $ = (id) => document.getElementById(id);
-    const note = (t) => { $("log").textContent = t + "\n" + $("log").textContent; };
+    const cellAt = (x, y) => cells[Number(y) * 16 + Number(x)];
+    const norm = (a) => (a || "").toLowerCase();
+    const short = (a) => (a ? a.slice(0, 6) + "…" + a.slice(-4) : "—");
+    const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test((a || "").trim());
+    const isUid = (a) => /^0x[0-9a-fA-F]{64}$/.test((a || "").trim());
+    const cheb = (p, q) => Math.max(Math.abs(Number(p.x) - Number(q.x)), Math.abs(Number(p.y) - Number(q.y)));
 
-    function cellAt(x, y) { return cells[y * 16 + x]; }
+    let provider, signer, me, world, honor, target, currentMatch, wired = false, pollTimer = null;
+    const seen = new Map();        // lowercase address -> player snapshot
+    const lastUid = new Map();     // lowercase address -> { kind, uid }  (for ring highlights)
+
+    // ── log: every line is a record, every UID is clickable ──
+    function line(html, cls = "") {
+      const d = document.createElement("div");
+      d.className = "rec " + cls;
+      d.innerHTML = html;
+      d.querySelectorAll("[data-uid]").forEach((el) => {
+        el.className = "uid";
+        el.onclick = () => { $("uidIn").value = el.dataset.uid; $("verify").click(); };
+      });
+      const box = $("log");
+      box.prepend(d);
+      while (box.childNodes.length > 120) box.lastChild.remove();
+    }
+    const note = (t, cls = "") => line(t.replace(/</g, "&lt;"), cls);
+    const rec = (kind, uid, subject, other, extra = "") =>
+      line(`<b>${KIND[kind] || kind}</b> <span data-uid="${uid}">${uid.slice(0, 18)}…${uid.slice(-6)}</span><br>` +
+           `${short(subject)} → ${short(other)}${extra ? " · " + extra : ""}`);
+
+    function why(e) {
+      // preferred path: the ABI declares `error …` fragments, so ethers decodes the name
+      const name = e?.revert?.name;
+      if (name) return "reverted with " + name.replace(/([A-Z])/g, " $1").trim().toLowerCase();
+      // fallback: match the 4-byte selector by hand
+      const raw = (e?.revert?.data || e?.data || "").toLowerCase();
+      for (const k in SEL) if (raw.startsWith(k)) return SEL[k];
+      if (e?.code === "ACTION_REJECTED" || /rejected|user denied/i.test(e?.message || "")) return "you dismissed the wallet signature";
+      return (e?.shortMessage || e?.reason?.error || e?.message || String(e)).slice(0, 160);
+    }
+
+    // ── every on-chain write goes through here: no silent failures on stage ──
+    async function fire(label, fnName, ...args) {
+      if (!world) { note("no contract wired — paste the two addresses under DEPLOY", "err"); return null; }
+      try {
+        const tx = await world[fnName](...args);
+        note(label + " " + tx.hash.slice(0, 12) + " …");
+        const r = await tx.wait();
+        note(label + " mined in " + r.blockNumber, "live");
+        await refreshKnown();
+        return r;
+      } catch (e) {
+        note("✗ " + label + ": " + why(e), "err");
+        return null;
+      }
+    }
+
+    async function watch(addr) {
+      addr = norm(addr);
+      if (!isAddr(addr) || seen.has(addr)) return;
+      seen.set(addr, { joined: false, alive: false, x: 0, y: 0, hp: 0, ammo: 0, matchId: null });
+      await refreshKnown();
+    }
 
     function paint() {
       cells.forEach((c) => { c.className = "cell"; c.innerHTML = ""; });
+      let onBoard = 0;
       for (const [addr, p] of seen) {
         if (!p.joined) continue;
+        onBoard++;
         const c = cellAt(p.x, p.y);
+        const mine = me && addr === norm(me);
         const dot = document.createElement("div");
-        const mine = me && addr.toLowerCase() === me.toLowerCase();
         dot.className = "dot" + (mine ? "" : " other") + (p.alive ? "" : " dead");
         c.appendChild(dot);
-        if (mine) c.classList.add("me");
-        else c.classList.add("them");
+        c.classList.add(mine ? "me" : "them");
+        const hp = document.createElement("span");
+        hp.className = "hp"; hp.textContent = p.hp; c.appendChild(hp);
+        if (currentMatch && p.matchId && norm(p.matchId) !== norm(currentMatch)) c.classList.add("ghost");
+        const mark = lastUid.get(addr);
+        if (mark) c.classList.add(mark.kind === 1 ? "pacted" : mark.kind === 2 ? "spared" : "");
       }
+      $("roster").textContent = onBoard + " in this match";
+      $("hint").textContent = onBoard > 1
+        ? `${onBoard} players on the board. Click a body to target it; verbs need adjacency and, for Spare, a wounded opponent (≤${window.__spareWindow ?? 2} hp, still armed).`
+        : "Click a cell to move (1 Chebyshev step). Alone out here — hand the other profile this URL, or pin their address under WATCH.";
     }
 
     async function refreshKnown() {
       if (!world || !me) return;
-      const addrs = new Set([me, ...seen.keys()]);
-      if (target) addrs.add(target);
+      try { currentMatch = await world.currentMatch(); } catch { return; }
+      const addrs = new Set([norm(me), ...seen.keys()]);
+      if (isAddr(target)) addrs.add(norm(target));
       for (const a of addrs) {
-        try { seen.set(a, await world.viewPlayer(a)); } catch {}
+        try {
+          const p = await world.viewPlayer(a);
+          p.matchId = p.matchId || null;
+          seen.set(a, p);
+        } catch { /* stale key: keep placeholder, ignore */ }
       }
-      const p = seen.get(me);
-      if (p) $("vitals").textContent = `${p.hp} / ${p.ammo}` + (p.alive ? "" : "  dead");
+      const p = seen.get(norm(me));
+      if (p && p.joined) {
+        $("vitals").textContent = `${p.hp} hp / ${p.ammo} ammo` + (p.alive ? "" : "  DEAD");
+        $("honour").textContent = `${p.pactKept} / ${p.spared} / ${p.pactBroken}`;
+        $("matchTag").textContent = norm(p.matchId) === norm(currentMatch) ? "in current match" : "orphaned — Spawn";
+      } else if (me) { $("vitals").textContent = "not spawned"; $("honour").textContent = "—"; }
+
+      // target state: adjacency, liveness, live pact
+      const tp = isAddr(target) ? seen.get(norm(target)) : null;
+      const inThisMatch = !!tp && tp.joined && tp.alive && norm(tp.matchId) === norm(currentMatch);
+      const adjacent = !!p && !!tp && cheb(p, tp) === 1;
+      if (isAddr(target)) {
+        $("tgt").textContent = short(norm(target));
+        let state = inThisMatch ? (adjacent ? "adjacent" : "not adjacent") : "gone from this match";
+        if (inThisMatch && adjacent) {
+          try {
+            const uid = await world.livePact(me, target);
+            if (uid && uid !== "0x" + "0".repeat(64)) { state += " · pact live"; lastUid.set(norm(me), { kind: 1, uid }); }
+            else lastUid.delete(norm(me));
+          } catch { /* older World build */ }
+          state += ` · they are at ${tp.hp} hp${tp.ammo ? "" : ", unarmed"}`;
+        }
+        $("tgtState").textContent = state;
+        $("clearTarget").style.display = "";
+      } else { $("tgt").textContent = "none"; $("tgtState").textContent = "—"; $("clearTarget").style.display = "none"; lastUid.delete(norm(me)); }
+      $("pact").disabled  = !(inThisMatch && adjacent);
+      $("spare").disabled = !(inThisMatch && adjacent && p && p.ammo > 0 && tp && Number(tp.hp) <= (window.__spareWindow ?? 2) && Number(tp.ammo) > 0);
+      $("shoot").disabled = !(inThisMatch && adjacent && p && p.ammo > 0);
+      $("seal").disabled  = !(p && p.joined);
       paint();
     }
 
     cells.forEach((c) => {
       c.onclick = async () => {
-        if (!world) return;
+        if (!world || !me) return note("connect a wallet and wire the contracts first", "err");
         const x = +c.dataset.x, y = +c.dataset.y;
-        const meP = seen.get(me);
-        if (!meP) return;
-        let occupant;
-        for (const [addr, p] of seen) {
-          if (p.joined && p.x === x && p.y === y) occupant = addr;
-        }
-        if (occupant && occupant.toLowerCase() !== me.toLowerCase()) {
-          target = occupant;
-          $("tgt").textContent = occupant.slice(0, 8) + "…";
-          return;
-        }
-        const dx = x - meP.x, dy = y - meP.y;
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== 1 && !(Math.abs(dx)+Math.abs(dy)===1)) {
-          note("move 1 chebyshev step");
-          return;
-        }
-        const tx = await world.move(dx, dy);
-        note("move " + tx.hash.slice(0, 10));
-        await tx.wait();
-        await refreshKnown();
+        const meP = seen.get(norm(me));
+        if (!meP || !meP.joined) return note("Spawn first — you are not on the board", "err");
+        let occupant = null;
+        for (const [addr, p] of seen) if (p.joined && Number(p.x) === x && Number(p.y) === y && addr !== norm(me)) occupant = addr;
+        if (occupant) { target = occupant; await refreshKnown(); return; }
+        const dx = x - Number(meP.x), dy = y - Number(meP.y);
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== 1) return note("that is not a step — 1 cell in any direction, including diagonal", "err");
+        await fire("move " + dx + "," + dy, "move", dx, dy);
       };
     });
 
+    async function ensureChain() {
+      let cur = null;
+      try { cur = await provider.send("eth_chainId", []); } catch { }
+      const tag = $("netTag");
+      if (cur && BigInt(cur) === BigInt(MONAD_CHAIN)) {
+        tag.textContent = "MONAD TESTNET · 10143 · THE WORLD IS THE ONLY ATTESTER";
+        tag.className = "tag live";
+        return true;
+      }
+      if (cur && BigInt(cur) === BigInt(143)) {
+        note("wallet is on Monad MAINNET (143) — this demo is testnet-only, switch networks", "err");
+        tag.textContent = "WRONG NETWORK · MAINNET 143 · use testnet 10143"; tag.className = "tag warn";
+        return false;
+      }
+      note("wallet is on " + (cur || "an unknown chain") + " — switching to Monad testnet (10143)");
+      try {
+        await provider.send("wallet_switchEthereumChain", [{ chainId: MONAD_CHAIN }]);
+        tag.textContent = "MONAD TESTNET · 10143 · THE WORLD IS THE ONLY ATTESTER"; tag.className = "tag live";
+        return true;
+      } catch (e) {
+        if (e?.code === 4902 || /Unrecognized|unknown chain|does not exist/i.test(String(e?.message || ""))) {
+          try {
+            await provider.send("wallet_addEthereumChain", [MONAD_PARAMS]);
+            note("added Monad Testnet 10143 to the wallet", "live");
+            return true;
+          } catch (e2) { note("✗ could not add the chain: " + why(e2), "err"); return false; }
+        }
+        note("could not switch chains: " + why(e) + " — add Monad Testnet 10143 by hand", "err");
+        return false;
+      }
+    }
+
     $("connect").onclick = async () => {
-      provider = new BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      signer = await provider.getSigner();
-      me = await signer.getAddress();
-      $("meAddr").textContent = me.slice(0, 6) + "…" + me.slice(-4);
-      const w = localStorage.getItem("ks_world");
-      const l = localStorage.getItem("ks_log");
-      if (w) { $("worldIn").value = w; $("logIn").value = l; wire(w, l); }
+      try {
+        if (!window.ethereum) return note("no EIP-1193 wallet in this browser — MetaMask or Rabby", "err");
+        provider = new BrowserProvider(window.ethereum);
+        const onChain = await ensureChain();
+        await provider.send("eth_requestAccounts", []);
+        if (!onChain) note("still not on Monad testnet — the board will fail every write until you switch", "err");
+        signer = await provider.getSigner();
+        me = await signer.getAddress();
+        $("meAddr").textContent = short(me);
+        let w = $("worldIn").value.trim() || localStorage.getItem("ks_world") || "";
+        let l = $("logIn").value.trim() || localStorage.getItem("ks_log") || "";
+        if (!isAddr(w) || !isAddr(l)) {
+          // the deploy script can drop web/addresses.json — then there is no paste step at all
+          try {
+            const j = await (await fetch("./addresses.json")).json();
+            if (isAddr(j.world) && isAddr(j.log)) { w = j.world; l = j.log; if (j.block) $("blockIn").value = j.block; }
+          } catch { /* no addresses.json: manual paste path below */ }
+        }
+        if (isAddr(w) && isAddr(l)) { $("worldIn").value = w; $("logIn").value = l; await wire(w, l); }
+        else note("paste the World + HonorLog addresses under DEPLOY, then 'Use addresses'");
+      } catch (e) { note("✗ connect: " + why(e), "err"); }
     };
 
     $("saveAddr").onclick = () => {
-      localStorage.setItem("ks_world", $("worldIn").value.trim());
-      localStorage.setItem("ks_log", $("logIn").value.trim());
-      wire($("worldIn").value.trim(), $("logIn").value.trim());
+      const w = $("worldIn").value.trim(), l = $("logIn").value.trim();
+      if (!isAddr(w) || !isAddr(l)) return note("both addresses need to be full 0x…40-hex values", "err");
+      localStorage.setItem("ks_world", w); localStorage.setItem("ks_log", l);
+      const blk = Number.parseInt($("blockIn").value.trim(), 10);
+      if (Number.isFinite(blk) && blk >= 0) localStorage.setItem("ks_block", String(blk));
+      wire(w, l);
     };
 
-    function wire(w, l) {
+    async function wire(w, l) {
+      if (!signer) return note("connect the wallet first", "err");
+      if (wired) { try { world?.removeAllListeners(); honor?.removeAllListeners(); } catch {} }
       world = new Contract(w, WORLD_ABI, signer);
       honor = new Contract(l, LOG_ABI, signer);
+      try { world.removeAllListeners(); honor.removeAllListeners(); } catch {}
+
+      // Subscriptions: the board learns who exists from the chain, not from luck.
       honor.on("Attested", (uid, schema, subject, attester, other, matchId, kind) => {
-        note(`${KIND[Number(kind)] || kind}\n${uid}\n${subject.slice(0,8)} → ${other.slice(0,8)}`);
+        lastUid.set(norm(subject), { kind: Number(kind), uid });
+        rec(Number(kind), uid, subject, other);
+        watch(subject); watch(other);
       });
-      refreshKnown();
-      setInterval(refreshKnown, 2000);
+      world.on("Spawned", (matchId, player) => { note("Spawned " + short(norm(player))); watch(player); });
+      world.on("Moved", (player) => watch(player));
+      world.on("Shot", (shooter, victim, hpLeft, killed) => {
+        note(`${killed ? "☠ " : "• "}${short(norm(shooter))} shot ${short(norm(victim))} → ${hpLeft} hp`);
+        watch(shooter); watch(victim);
+      });
+
+      // Back-fill: anyone who acted before this tab connected must still show up.
+      try {
+        const latest = await provider.getBlockNumber();
+        const from = Number(localStorage.getItem("ks_block") ?? 0);
+        const span = Math.max(0, Math.min(from > 0 ? from : Math.max(0, latest - 30000), latest));
+        const evs = await world.queryFilter(world.filters.Spawned(), span, "latest");
+        evs.forEach((e) => watch(e.args.player));
+        note(`scanned Spawned from block ${span} (${evs.length} hits) — latest ${latest}`, "live");
+      } catch (e) { note("event backfill skipped: " + why(e), "err"); }
+
+      try { window.__spareWindow = Number(await world.SPARE_WINDOW()); } catch {}
+      $("spawn").disabled = false; $("verify").disabled = false;
+      wired = true;
+      await refreshKnown();
+      if (pollTimer === null) pollTimer = setInterval(() => { if (wired) refreshKnown(); }, 2000);
     }
 
-    $("spawn").onclick = async () => {
-      const tx = await world.spawn();
-      note("spawn " + tx.hash.slice(0, 10));
-      await tx.wait();
-      await refreshKnown();
-    };
+    $("spawn").onclick = () => fire("spawn", "spawn");
+    $("pact").onclick  = () => fire("pact", "pact", target);
+    $("spare").onclick = () => fire("spare", "spare", target);
+    $("shoot").onclick = () => fire("shoot", "shoot", target);
+    $("seal").onclick  = () => fire("seal", "sealMe");
+    $("clearTarget").onclick = () => { target = null; refreshKnown(); };
+    $("watchBtn").onclick = async () => { const a = $("watchIn").value.trim(); if (!isAddr(a)) return note("not an address", "err"); await watch(a); note("pinned " + short(a)); };
 
-    async function verb(fn) {
-      if (!target) return note("click an opponent first");
-      const tx = await world[fn](target);
-      note(fn + " " + tx.hash.slice(0, 10));
-      await tx.wait();
-      await refreshKnown();
-    }
-    $("pact").onclick = () => verb("pact");
-    $("spare").onclick = () => verb("spare");
-    $("shoot").onclick = () => verb("shoot");
-    $("seal").onclick = async () => {
-      const tx = await world.sealMe();
-      await tx.wait();
-      note("sealed");
+    $("mine").onclick = async () => {
+      if (!honor || !me) return note("connect first", "err");
+      try {
+        const n = Number(await honor.countOf(me));
+        note(`${n} record${n === 1 ? "" : "s"} about ${short(me)} — click one to verify it`);
+        for (let i = 0; i < n; i++) {
+          const uid = await honor.uidAt(me, i);
+          const a = await honor.get(uid);
+          rec(Number(a.kind), uid, a.subject, a.other, "score/hp " + a.extra);
+        }
+      } catch (e) { note("✗ " + why(e), "err"); }
     };
 
     $("verify").onclick = async () => {
       const uid = $("uidIn").value.trim();
-      const r = await honor.verify(uid);
-      $("verifyOut").textContent = JSON.stringify({
-        ok: r.ok,
-        kind: KIND[Number(r.kind)] || String(r.kind),
-        subject: r.subject,
-        other: r.other,
-        schema: r.schema,
-        refUID: r.refUID,
-      }, null, 2);
+      if (!isUid(uid)) { $("verifyOut").innerHTML = '<span class="err">not a bytes32 — paste a full 0x…64-hex UID</span>'; return; }
+      try {
+        const r = await honor.verify(uid);
+        const w = await honor.world();
+        const rows = {
+          ok: r[0],
+          kind: KIND[Number(r[5])] || String(r[5]),
+          attester: r[2],
+          attested_by_the_World: norm(r[2]) === norm(w),
+          subject: r[3],
+          other: r[4],
+          schema: r[1],
+          refUID: r[6],
+        };
+        $("verifyOut").innerHTML =
+          Object.entries(rows).map(([k, v]) => `${k}: <span class="${/false/.test(String(v)) ? "err" : ""}">${v}</span>`).join("<br>") +
+          (rows.ok ? "" : '<br><span class="err">no such attestation (verify returns false rather than reverting)</span>');
+      } catch (e) { $("verifyOut").innerHTML = '<span class="err">✗ ' + why(e) + "</span>"; }
     };
+
+    // addresses may arrive from the Deploy script's URL instead of a paste
+    const q = new URLSearchParams(location.search);
+    if (isAddr(q.get("world"))) $("worldIn").value = q.get("world").trim();
+    if (isAddr(q.get("log"))) $("logIn").value = q.get("log").trim();
+    if (q.get("block")) $("blockIn").value = q.get("block").trim();
+    if (isAddr(q.get("watch"))) { $("watchIn").value = q.get("watch").trim(); }
+    for (const [k, v] of [["ks_world", "worldIn"], ["ks_log", "logIn"], ["ks_block", "blockIn"]]) {
+      const saved = localStorage.getItem(k);
+      if (saved && !$(v).value) $(v).value = saved;
+    }
   </script>
 </body>
 </html>
