@@ -38,7 +38,7 @@ contract Deploy is Script {
             '",\n  "block": ', vm.toString(deployBlock + 1),
             "\n}\n"
         );
-        vm.writeFile("web/addresses.json", bytes(json));
+        vm.writeFile("web/addresses.json", json);
 
         console.log("UI: web/index.html?world=%s&log=%s", address(world), address(log));
     }
