@@ -16,9 +16,16 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const html = fs.readFileSync(path.join(ROOT, "web", "index.html"), "utf8");
+// node script/audit-ui.mjs [web/deck.html] [--projection]
+// --projection only widens the type scale: a deck on a wall needs steps the app never uses. Every other rule
+// (radius, palette, glow, banned faces, contrast per rule) is identical, because identity is not viewport-specific.
+const TARGET = (process.argv.slice(2).find((a) => !a.startsWith("--")) || "web/index.html").replace(/^\.\//, "");
+const PROJECTION = process.argv.includes("--projection");
+const SCALE = PROJECTION ? [12, 15, 19, 24, 30, 42, 56, 72] : [12, 15, 19, 24, 30];
+const html = fs.readFileSync(path.join(ROOT, TARGET), "utf8");
 const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
 const fail = [], pass = [];
+const ok0 = (cond, name, msg) => t(name, cond, msg);
 const t = (c, cond, msg) => (cond ? pass : fail).push(c + " — " + msg);
 
 // tokens: every var(--x) must be declared, and declared exactly as the brief specifies
@@ -52,7 +59,7 @@ const tracks = [...css.matchAll(/letter-spacing:\s*([0-9.]+)em/g)].map((m) => Nu
 t("tracking", tracks.length && Math.max(...tracks) <= 0.12, `max used = ${Math.max(...tracks)}em (wordmark cap 0.12em)`);
 // scale: only 12/15/19/24/30 px
 const sizes = [...new Set([...css.matchAll(/font-size:\s*(\d+)px/g)].map((m) => Number(m[1])))].sort((a, b) => a - b);
-t("type scale", sizes.every((s) => [12, 15, 19, 24, 30].includes(s)), `sizes in use: ${sizes.join(", ")}`);
+t("type scale", sizes.every((s) => SCALE.includes(s)), `sizes in use: ${sizes.join(", ")} (allowed: ${SCALE.join("/")})`);
 t("body >= 15px", /body\s*{[^}]*font-size:\s*15px/.test(css.replace(/\s+/g, " ")) || /font-size: 15px/.test(css), "15px base");
 t("tabular nums", /font-variant-numeric:\s*tabular-nums/.test(css), "figures align in the docket");
 t("no bounce", !/cubic-bezier\(|elastic|bounce|@keyframes/.test(css), "no keyframes; motion is transition-only");
@@ -82,13 +89,24 @@ for (const { sel, body } of blocks) {
   checked.push(`${sel}: ${fg}/${bg} ${r.toFixed(2)}`);
   t(`AA ${sel.slice(-30)}`, r >= 4.5, `${r.toFixed(2)}:1 for text on ${bg}`);
 }
+// gilt-on-paper is 3.61:1 — legal for display type (3:1), not for body copy. Check the size it is used at,
+// since a rule with no background declaration inherits paper and cannot be resolved any other way.
+const giltRules = [...css.matchAll(/([^{}]+)\{([^{}]*color:\s*var\(--gilt\)[^{}]*)\}/g)].map(([, sel, body]) => {
+  const sz = (body.match(/font-size:\s*(\d+)px/) || [])[1];
+  return { sel: sel.replace(/\s+/g, " ").trim().slice(-28), size: sz ? Number(sz) : null };
+});
+const smallGilt = giltRules.filter((g) => g.size !== null && g.size < 24);
+ok0(smallGilt.length === 0, "gilt is display-size only", smallGilt.length
+  ? `too small to clear 3:1 as text: ${smallGilt.map((g) => `${g.sel}@${g.size}px`).join(", ")} — use ink, or a gilt rule instead`
+  : `${giltRules.length} gilt text rule(s), all ≥ 24px or inherited-large`);
+
 // the pairs the brief names explicitly, whatever the cascade does
 for (const [name, fg, bg, need] of [["ink on paper", I, P, 4.5], ["paper on night", P, N, 4.5], ["paper on wax", P, W, 4.5], ["paper on moss", P, M, 4.5], ["soft ink on paper", S, P, 4.5], ["wax on paper", W, P, 4.5], ["moss on paper", M, P, 4.5], ["gilt rule on paper (non-text, 3:1)", G, P, 3]]) {
   const r = ratio(fg, bg);
   t(`AA ${name}`, r >= need, `${r.toFixed(2)}:1 (needs ${need}:1)`);
 }
 t("rules with color+background pair", checked.length > 0, `${checked.length} styled text rules checked against their own background`);
-console.log(fail.length ? "\n✗ " + fail.length + " css violations:\n  " + fail.join("\n  ") : "\n✓ css audit clean");
-console.log(`  ${pass.length} checks passed.`);
+console.log(fail.length ? `\n✗ ${TARGET}: ${fail.length} violation${fail.length > 1 ? "s" : ""}:\n  ` + fail.join("\n  ") : `\n✓ ${TARGET} clean${PROJECTION ? " (projection scale)" : ""}`);
+console.log(process.argv.includes("--verbose") ? "\n  " + pass.join("\n  ") : `  ${pass.length} checks passed.`);
 console.log(fail.length ? "" : "");
 process.exitCode = fail.length ? 1 : 0;

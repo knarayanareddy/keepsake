@@ -511,6 +511,18 @@ the real deadline is the Devnads submit button, not the room's agenda. §1's "on
 served by `303 ms` measured on mainnet via the public stats mirror rather than docs' `~10,000 TPS`, which this
 match demonstrably does not exercise; an audit check fails if a borrowed TPS number ever enters the pitch files.
 
+### Fifth pass — the pitch, as an artifact
+
+The submission is a talk as well as a link, so `web/deck.html` now carries it: eleven sheets in the notary identity
+(paper, night only for the board plates, square seals, hairline rules, radius 0), arrow keys / swipe / `F` /
+`P`, `#n` deep links, and `@media print` for a PDF copy. It is written to be *readable when the demo is not* —
+so the numbers slide cites the recording's provenance, the limits slide states the two things the design
+deliberately does not do, and nothing in it needs a network.
+
+`script/audit-ui.mjs` grew a second target and a projection scale (`node script/audit-ui.mjs web/deck.html
+--projection`), plus a rule the deck needed that the app didn't: gilt-on-paper is 3.61:1, legal as display type
+and not as body copy, so any gilt text under 24px now fails the audit. 47 checks on the app, 39 on the deck.
+
 **Both briefs are now executable:** `node script/audit-ui.mjs` (46 checks: tokens, ban-list, WCAG per rule) and
 `node script/audit-platform.mjs` (37 checks: the add-chain payload against §8, caps against the recording, the
 bounded window, the lock's `finally`, foundry endpoints, no localhost anywhere in `web/`, README/SUBMISSION

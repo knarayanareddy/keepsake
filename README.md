@@ -127,6 +127,14 @@ nobody checks is a design rule that decays. Type is **vendored, not CDN'd** (`we
 voice, IBM Plex Sans for chrome, IBM Plex Mono for docket data), for the same reason `ethers` is vendored:
 a captive portal that kills one request must not restyle the demo mid-pitch. No framework, no build step.
 
+## Pitch folio
+
+`web/deck.html` is the talk: eleven slides, paper chrome and a night board like the app, arrow keys / swipe / `F`
+for fullscreen, `#n` deep links, and `@media print` turns it into a stackable PDF. Same vendored fonts, no
+framework, no build step, and it is checked by the same identity audit (`node script/audit-ui.mjs web/deck.html
+--projection`). Serve it with the app and it lives at `/deck.html` — useful as the thing you project when the
+wifi is bad, and as the fallback if a laptop dies.
+
 ## Pitch line
 
 > A future DAO can require `spared ≥ 1` without me building that DAO. We didn't ship a leaderboard.

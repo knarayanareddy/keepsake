@@ -118,7 +118,8 @@ All under `keepsake/` (workspace root may be `keepsake` or home containing it).
 | `script/Deploy.s.sol` | Broadcast: new HonorLog → new World(log) → setWorld. Logs both addresses. |
 | `foundry.toml` | `src = "contracts"`, solc 0.8.24, `monad` RPC from env. |
 | `web/index.html` | Board UI, skinned to `AGENT_UI.md`: paper chrome, night playfield, square seals, hairline attestation rules, radius 0; the HonorLog is a dated docket and `verify()` a definition list. ethers and the four woff2 subsets vendored at `web/vendor/` (esm.sh only as fallback; no webfont fetch). Wallet **optional**: boots read-only against the testnet RPC from `web/addresses.json` / `?world=&log=&block=`, and falls back to `web/demo-match.json` — a match recorded off this exact bytecode in a local EVM. Two browser profiles = two players; decoded reverts, live-pact chip, `verify()` on click, receipt-read fee counter. |
-| `web/monad-crash-course.html` | 9-slide Monad primer (keys/click). Not part of the product. |
+| `web/deck.html` | The pitch folio, 11 slides (problem → idea → mechanism → guarantees → the chain → what's left → closer). Same identity, same vendored fonts, `node script/audit-ui.mjs web/deck.html --projection` keeps it honest. Serves as the projection *and* as the fallback when a laptop or the wifi dies. |
+| `web/monad-crash-course.html` | 9-slide Monad primer (keys/click). Not part of the product, and still in the pre-restyle dark skin — known and deliberately untouched, since §9 keeps scope out of the freeze. |
 | `web/vendor/ethers.min.js` | Committed ethers 6.13.4 ESM build. The page imports this first, CDN second — a dead esm.sh no longer kills the demo. |
 | `test/Keepsake.t.sol` | 16 Foundry tests: demo path, `refUID` chain, one regression per guard. |
 | `DEEPDIVE.md` | Full audit + the runtime probe results behind every guard above. |
@@ -240,7 +241,7 @@ Rehearse once after deploy. Freeze.
 | When | What |
 |------|------|
 | First 20 min | forge-std, RPC, faucet two wallets, deploy, confirm `setWorld` — then `forge test` (16 tests exist now) |
-| Done already | ~~Spawn events on the UI so two players see each other~~ (v2), decoded reverts, offline ethers, 10143 pinned, guard rails, **read-only spectator board + recorded-match preview**, receipt-read fee counter, `web/hero.png` + `SUBMISSION.md` |
+| Done already | ~~Spawn events on the UI so two players see each other~~ (v2), decoded reverts, offline ethers, 10143 pinned, guard rails, **read-only spectator board + recorded-match preview**, receipt-read fee counter, `web/hero.png`, `SUBMISSION.md`, **the notary restyle (v3)**, **the platform + chain briefs implemented and audited (v4)**, `web/deck.html` + `DEPLOY.md` (v5) |
 | Next | Rehearse the §6 order **as rewritten** (wound → pact → spare → shoot); `verify()` both UIDs |
 | If ahead | ugly CSS; second monitor with crash course; a 60-second screen recording for the `Demo` slot |
 | If behind at hour 5 | No SVG, no seal, no extra verbs. Explorer logs + verify JSON |

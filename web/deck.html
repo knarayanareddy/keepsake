@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KEEPSAKE — the problem, the idea, the mechanism</title>
+<meta name="description" content="A 16×16 on-chain arena where the only witness to what you did is the chain. Monad Blitz Amsterdam, 29 Aug 2026." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23E4D9C5'/%3E%3Crect x='5' y='5' width='11' height='11' fill='%238A6A22'/%3E%3Crect x='16' y='16' width='11' height='11' fill='%239B2C2C'/%3E%3C/svg%3E" />
+<style>
+  /* ── Vendored typefaces, same as the app: a killed CDN must not restyle the pitch. ── */
+  @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap;
+    src: url("./vendor/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+  @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap;
+    src: url("./vendor/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+  @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap;
+    src: url("./vendor/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+  @font-face { font-family: "Newsreader"; font-style: normal; font-weight: 500; font-display: swap;
+    src: url("./vendor/fonts/newsreader-latin-500-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+
+  /* Identity per AGENT_UI.md — paper chrome, the playfield the only night surface, square seals,
+     hairline rules, radius 0, five chromatics plus neutrals. Sizes follow the app's scale
+     (12/15/19/24/30) plus three projection steps (42/56/72) for a wall; nothing else is added.
+     Gilt is used for rules and for display-size type only: gilt-on-paper is 3.61:1, which clears
+     large text and not body text. */
+  :root {
+    --paper: #E4D9C5; --paper-deep: #DCD0B9; --ink: #1C1914; --ink-soft: #5B5349;
+    --rule: #C4B49A; --wax: #9B2C2C; --moss: #3F5C4A; --gilt: #8A6A22; --night: #1A2330;
+    --grid: #2A3345; --stamp: #6E1E1E;
+    --register: "Newsreader", "Source Serif 4", Georgia, "Times New Roman", serif;
+    --instrument: "IBM Plex Sans", "Helvetica Neue", Helvetica, sans-serif;
+    --docket: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  * { box-sizing: border-box; border-radius: 0; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--instrument);
+    font-size: 15px; line-height: 1.5; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  a { color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .deck { height: 100%; display: flex; flex-direction: column; }
+  .slide { display: none; flex: 1; overflow: auto; }
+  .slide.on { display: block; }
+  .sheet { max-width: 1120px; margin: 0 auto; padding: 6vh 6vw 4vh; min-height: 100%;
+    display: flex; flex-direction: column; justify-content: center; }
+
+  /* every sheet opens like a filed instrument */
+  .folio { display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+    border-bottom: 1px solid var(--ink); padding-bottom: 10px; margin-bottom: 5vh;
+    font-family: var(--docket); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+  .folio b { color: var(--ink); font-weight: 600; }
+  .sheet > * + * { margin-top: 1.15rem; }
+
+  h1, h2 { font-family: var(--register); font-weight: 500; margin: 0; line-height: 1.08; letter-spacing: -0.01em; }
+  h1 { font-size: 72px; }
+  h2 { font-size: 42px; }
+  .claim { font-size: 56px; }
+  p, li { max-width: 78ch; margin: 0; }
+  .lede { font-size: 24px; color: var(--ink-soft); max-width: 62ch; }
+  .note { font-family: var(--docket); font-size: 12px; color: var(--ink-soft); }
+  em { font-style: normal; border-bottom: 2px solid var(--gilt); }
+  .wax { color: var(--wax); } .moss { color: var(--moss); } .gilt { color: var(--gilt); }
+
+  /* three numbered findings, docket style */
+  ol.items { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; }
+  ol.items > li { display: grid; grid-template-columns: 46px 1fr; gap: 18px; align-items: start;
+    border-bottom: 1px solid var(--rule); padding: 18px 0; }
+  ol.items > li:first-child { border-top: 1px solid var(--ink); }
+  ol.items .no { font-family: var(--docket); font-size: 19px; color: var(--wax); }
+  ol.items h3 { font-family: var(--register); font-weight: 500; font-size: 24px; margin: 0 0 6px; }
+  ol.items p { font-size: 19px; color: var(--ink-soft); }
+  ol.items p b { color: var(--ink); font-weight: 600; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; align-items: start; }
+  .cols.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  .plate { border: 1px solid var(--ink); background: var(--night); padding: 14px; }
+  .plate svg { display: block; width: 100%; height: auto; }
+  .plate .cap { font-family: var(--docket); font-size: 12px; color: var(--paper); margin-top: 10px; }
+
+  table { border-collapse: collapse; width: 100%; font-family: var(--docket); font-size: 15px; }
+  caption { text-align: left; font-family: var(--docket); font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--ink-soft); padding-bottom: 8px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--rule); }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); font-weight: 400;
+    border-bottom: 1px solid var(--ink); }
+  td.num { text-align: right; }
+  tr.key td { background: var(--paper-deep); }
+
+  pre.code { font-family: var(--docket); font-size: 15px; line-height: 1.7; margin: 0; padding: 16px 18px;
+    background: var(--paper-deep); border-left: 3px solid var(--ink); overflow: auto; white-space: pre-wrap; }
+  pre.code .c { color: var(--ink-soft); }
+  pre.code .w { color: var(--wax); }
+  pre.code .m { color: var(--moss); }
+
+  /* the HonorLog reads like the app's docket panel, not like a terminal */
+  .docket { border: 1px solid var(--ink); }
+  .docket .rec { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 13px 16px;
+    border-bottom: 1px solid var(--rule); }
+  .docket .rec:last-child { border-bottom: 0; }
+  .docket .head { font-family: var(--docket); font-size: 12px; color: var(--ink-soft); }
+  .docket .k { font-family: var(--register); font-size: 24px; letter-spacing: 0.02em; }
+  .docket .parties { font-family: var(--docket); font-size: 15px; grid-column: 1 / -1; }
+  .docket .gas { font-family: var(--docket); font-size: 15px; text-align: right; color: var(--ink-soft); }
+  .docket .kind-pact .k { color: var(--gilt); }
+  .docket .kind-spare .k { color: var(--moss); }
+  .docket .kind-betrayal .k { color: var(--wax); }
+
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 0; margin: 0; border-top: 1px solid var(--ink); }
+  dl.facts dt { font-family: var(--docket); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-soft); padding: 9px 22px 9px 0; border-bottom: 1px solid var(--rule); }
+  dl.facts dd { font-family: var(--docket); font-size: 15px; margin: 0; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+  dl.facts dd.yes { color: var(--moss); }
+
+  ul.ticks { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  ul.ticks li { padding-left: 24px; position: relative; font-size: 19px; }
+  ul.ticks li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 9px; height: 9px; background: var(--wax); }
+  ul.ticks.yes li::before { background: var(--moss); }
+  ul.ticks li b { font-weight: 600; }
+
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--ink); margin-top: 4vh; }
+  .strip > div { padding: 14px 16px; border-right: 1px solid var(--rule); }
+  .strip > div:last-child { border-right: 0; }
+  .strip b { display: block; font-family: var(--register); font-size: 30px; font-weight: 500; }
+  .strip span { font-family: var(--docket); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+
+  /* chrome: progress as a row of squares, not a bar */
+  nav.rail { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 14px;
+    padding: 10px 18px; border-top: 1px solid var(--ink); background: var(--paper);
+    font-family: var(--docket); font-size: 12px; color: var(--ink-soft); }
+  nav.rail .marks { display: flex; gap: 5px; flex: 1; }
+  nav.rail button { width: 26px; height: 8px; padding: 0; border: 1px solid var(--ink); background: var(--paper);
+    cursor: pointer; transition: background 140ms linear; }
+  nav.rail button[aria-current="true"] { background: var(--wax); border-color: var(--wax); }
+  nav.rail button:hover { background: var(--paper-deep); }
+  nav.rail .keys { white-space: nowrap; }
+  kbd { font-family: var(--docket); border: 1px solid var(--rule); padding: 1px 5px; font-size: 12px; color: var(--ink); }
+
+  /* No entrance animation: the brief's rule is that motion lives in transitions, not keyframes — and a
+     projected slide that fades in is a slide nobody reads. */
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  @media (max-width: 900px) {
+    h1 { font-size: 42px; } .claim, h2 { font-size: 30px; } .lede { font-size: 19px; }
+    .cols, .cols.three { grid-template-columns: 1fr; } .strip { grid-template-columns: 1fr 1fr; }
+    .sheet { padding: 4vh 6vw 9vh; }
+  }
+  @media print {
+    .deck, .slide { display: block; height: auto; overflow: visible; }
+    nav.rail { display: none; }
+    .slide { break-after: page; }
+    .sheet { padding: 0; min-height: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 0 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="Folio">
+    <div class="sheet">
+      <div class="folio"><span>KEEPSAKE · <b>instrument of record</b></span><span>Monad Blitz · Amsterdam · 29 Aug 2026</span></div>
+      <h1>KEEPSAKE</h1>
+      <p class="claim">The only witness to what you<br />did is the chain.</p>
+      <p class="lede">A 16×16 arena where the rules are enforced in bytecode, and the only thing the bytecode
+        is willing to certify is a <em>choice that cost you something</em>.</p>
+      <div class="strip">
+        <div><b>2</b><span>contracts, 11,120 B runtime</span></div>
+        <div><b>5</b><span>verbs, one attester</span></div>
+        <div><b>20</b><span>txs recorded, 1,532,906 gas</span></div>
+        <div><b>0</b><span>tokens, fees, admin back doors</span></div>
+      </div>
+      <p class="note">Two wallets on Monad testnet 10143. Nothing to buy, nothing to sign that moves value.</p>
+    </div>
+  </section>
+
+  <!-- 1 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="The problem">
+    <div class="sheet">
+      <div class="folio"><span>Folio 01 · <b>the problem</b></span><span>three gaps</span></div>
+      <h2>A ledger records what happened to balances.<br />Not what you chose.</h2>
+      <ol class="items">
+        <li><span class="no">i.</span><div>
+          <h3>Merit has no place to live</h3>
+          <p>In any competitive system the interesting fact is a <b>restrained</b> action: you had the shot and
+            did not take it. State says <code>hp</code> stayed at 2 — it cannot say why. Everything that answers
+            "who was generous under pressure" today lives in someone's application database, and dies with it.</p>
+        </div></li>
+        <li><span class="no">ii.</span><div>
+          <h3>Attestation has an issuer problem</h3>
+          <p>You can sign a claim about yourself — which makes it worthless. Or you coordinate a registry to sign
+            it for you — which costs a key, a policy, a review queue and a trust relationship. Both failure modes
+            come from the same assumption: <b>that a fact needs an authority</b>.</p>
+        </div></li>
+        <li><span class="no">iii.</span><div>
+          <h3>The record expires with the product</h3>
+          <p>Rounds reset, servers stop, hackathon demos go back to <code>localhost</code>. A fact you can only
+            read through the service that produced it is not a fact — it is a <b>customer relationship</b>.</p>
+        </div></li>
+      </ol>
+      <p class="lede">So: put the claim about a choice in the one place that already enforces the rules of that
+        choice — and make lying impossible rather than merely discouraged.</p>
+    </div>
+  </section>
+
+  <!-- 2 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="The idea">
+    <div class="sheet">
+      <div class="folio"><span>Folio 02 · <b>the idea</b></span><span>one sentence, then the mechanism</span></div>
+      <h2>Make the referee the only witness,<br />and make testimony cost something.</h2>
+      <div class="cols">
+        <div>
+          <ul class="ticks">
+            <li><b>The World is the only attester.</b> <code>HonorLog</code> accepts writes from exactly one
+              address, pinned once at deploy. There is no function that lets you certify yourself — not a
+              permission we withheld, a function that does not exist.</li>
+            <li><b>A record can only mint alongside an action the rules already checked.</b> You cannot attest a
+              mercy while your opponent is healthy; the guard reverts first.</li>
+            <li><b>A betrayal carries the id of the trust it broke.</b> <code>refUID</code> points at your own
+              pact, so one read proves both halves.</li>
+            <li><b>The record is a soulbound token, not a row.</b> It outlives the match, the round, the app.</li>
+          </ul>
+        </div>
+        <div class="plate">
+          <svg viewBox="0 0 432 300" role="img" aria-label="Two seals on a night board, joined by a gilt rule; the same rule dashed in wax after the betrayal">
+            <g stroke="#2A3345" stroke-width="1">
+              <path d="M0 0H432M0 27H432M0 54H432M0 81H432M0 108H432M0 135H432M0 162H432M0 189H432M0 216H432M0 243H432M0 270H432M0 297H432" />
+              <path d="M0 0V297M27 0V297M54 0V297M81 0V297M108 0V297M135 0V297M162 0V297M189 0V297M216 0V297M243 0V297M270 0V297M297 0V297M324 0V297M351 0V297M378 0V297M405 0V297M432 0V297" />
+            </g>
+            <g stroke="#3A4761" stroke-width="2"><path d="M0 108H432M108 0V297M216 0V297M324 0V297" /></g>
+            <path d="M121 121H311" stroke="#8A6A22" stroke-width="2" />
+            <path d="M121 135H311" stroke="#9B2C2C" stroke-width="2" stroke-dasharray="6 4" />
+            <rect x="100" y="100" width="21" height="21" fill="#8A6A22" stroke="#E4D9C5" stroke-width="2" />
+            <rect x="292" y="100" width="21" height="21" fill="#9B2C2C" stroke="#E4D9C5" stroke-width="2" />
+            <rect x="292" y="100" width="21" height="21" fill="none" stroke="#9B2C2C" stroke-width="1" transform="translate(-2,-2)" />
+          </svg>
+          <p class="cap">gilt rule = a pact that stands · dashed wax = the betrayal the log kept, after the board forgot</p>
+        </div>
+      </div>
+      <p class="note">Deliberately absent: a kill that mints an achievement, a token, a prize pool, an admin call, a
+        front end that is the source of truth.</p>
+    </div>
+  </section>
+
+  <!-- 3 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="How it works">
+    <div class="sheet">
+      <div class="folio"><span>Folio 03 · <b>the mechanism</b></span><span>two contracts, five verbs</span></div>
+      <h2>Fourteen kilobytes, and every fact has to pass a guard.</h2>
+      <div class="cols">
+        <table>
+          <caption>the verbs, with the cost of each in the recorded match</caption>
+          <tr><th>verb</th><th>what it proves</th><th class="num">gas (cold)</th></tr>
+          <tr><td><code>spawn</code></td><td>you are on the field, coordinates from block entropy</td><td class="num">23,080–57,164</td></tr>
+          <tr><td><code>move</code></td><td>one cell, orthogonal or diagonal</td><td class="num">12,778</td></tr>
+          <tr><td><code>pact</code></td><td>one-way pledge: I will not finish you</td><td class="num">338,508</td></tr>
+          <tr class="key"><td><code>spare</code></td><td>you had a real kill shot and chose not to take it</td><td class="num">291,087</td></tr>
+          <tr class="key"><td><code>shoot</code></td><td>with a pact on them: a betrayal, <code>refUID</code> set</td><td class="num">24,331–290,077</td></tr>
+          <tr><td><code>sealMe</code></td><td>an optional rollup of kept / broke / spared</td><td class="num">233,492</td></tr>
+        </table>
+        <div>
+          <p class="lede" style="font-size:24px">The whole record is nine words wide, and it is
+            <em>checkable</em>, which a leaderboard is not.</p>
+<pre class="code"><span class="c">// contracts/World.sol — the guard that makes the mercy mean something</span>
+<span class="c">function spare(address other) external {</span>
+  <span class="c">  … if (p.ammo == 0) revert NoAmmo();</span>
+  <span class="w">  if (o.hp &gt; SPARE_WINDOW || o.ammo == 0) revert NotKillShot();</span>
+  <span class="m">  uid = log.attest(… kind = SPARE …);   // the World is the only caller</span>
+<span class="c">  }</span>
+<span class="c">// a kill: hp → 0, alive → false. no attest(). no credit. by design.</span></pre>
+          <ul class="ticks yes">
+            <li><b>2 hp and still armed</b> is what "I could have" means on-chain.</li>
+            <li>Full health, click Spare → <code>NotKillShot()</code>. The chain refuses to flatter you.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">16×16 field · 5 hp · 6 rounds · <code>SPARE_WINDOW</code> = 2 hp · both contracts are
+        EIP-170-compliant at 3,425 B and 7,695 B of runtime.</p>
+    </div>
+  </section>
+
+  <!-- 4 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="The record">
+    <div class="sheet">
+      <div class="folio"><span>Folio 04 · <b>the artifact</b></span><span>what one fact costs, and what it holds</span></div>
+      <h2>An attestation, deliberately EAS-shaped,<br />with the contract as its registry.</h2>
+      <div class="cols">
+        <dl class="facts">
+          <dt>uid</dt><dd>keccak over schema, world, subject, other, matchId, block, refUID, kind, a nonce</dd>
+          <dt>schema</dt><dd>one per kind — PACT · SPARE · BETRAYAL · CONDUCT</dd>
+          <dt>attester</dt><dd>the World. always. <code>verify()</code> returns it, so provenance is checkable, not assumed</dd>
+          <dt>subject</dt><dd>the actor — the one who spent the shot or the mercy</dd>
+          <dt>other</dt><dd>the counterparty, so a record names both sides</dd>
+          <dt>refUID</dt><dd>for a betrayal: the exact pact it broke</dd>
+          <dt>matchId</dt><dd>stamped at mint, so a pact never dangles into a later round</dd>
+          <dt>token</dt><dd>soulbound ERC-721: it outlives the match, and cannot be traded</dd>
+          <dt>revoke</dt><dd>an honoured pact loses its credit if it ends in betrayal — you cannot claim both</dd>
+        </dl>
+        <div>
+          <p class="lede" style="font-size:24px">Nothing about this is a signed promise from us. It is a
+            <code>view</code> function anyone can call, forever:</p>
+<pre class="code">HonorLog.verify(bytes32 uid)
+  → (bool ok, address attester, uint8 kind,
+     address subject, address other, bytes32 refUID)
+
+ok = true   attester = 0xWorld…   kind = BETRAYAL</pre>
+          <ul class="ticks">
+            <li><b>Unpredictable by design.</b> The trailing nonce means you cannot compute your own uid before
+              the tx — you read it from <code>Attested</code>. That is why the UI's docket is load-bearing, not
+              decorative.</li>
+            <li><b>No oracle, no relayer, no indexer required</b> to read it back.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="The scene">
+    <div class="sheet">
+      <div class="folio"><span>Folio 05 · <b>evidence</b></span><span>one recorded match, four facts</span></div>
+      <h2>The scene the whole design exists for.</h2>
+      <div class="cols">
+        <div class="docket">
+          <div class="rec kind-pact"><span class="head">20 · gas 338,508</span><span class="gas">block 20</span>
+            <span class="k">PACT</span><span class="parties">ALICE 0x1563…5508 → BOB 0x5cbd…07fb · uid 0x0a94705be2…54a5dd</span></div>
+          <div class="rec kind-spare"><span class="head">21 · gas 291,087</span><span class="gas">block 21</span>
+            <span class="k">SPARE</span><span class="parties">ALICE → BOB, who was at 2 hp with 4 rounds left · uid 0x83a2f4bc33…3efe4c</span></div>
+          <div class="rec kind-betrayal"><span class="head">22 · gas 290,077</span><span class="gas">block 22</span>
+            <span class="k">BETRAYAL</span><span class="parties">ALICE → BOB · refUID = her own pact 0x0a94705be2… · uid 0x2eba5ddb54…634d6b</span></div>
+          <div class="rec"><span class="head">23 · gas 233,492</span><span class="gas">block 23</span>
+            <span class="k">CONDUCT</span><span class="parties">0 kept · 1 spared · 1 broke · score −1, computed by the chain</span></div>
+        </div>
+        <div>
+          <p class="lede" style="font-size:24px">ALICE spares BOB — the kill shot was real, 2 hp and still armed —
+            so the chain mints it. Then she shoots him, and the log writes the betrayal <em>against the id of the
+            pledge she just made</em>.</p>
+          <p>Then a new match opens: BOB re-enters at (1,13), every score back to zero. Four records still resolve
+            for ALICE, and <code>verify(betrayal)</code> still returns <code>ok = true</code>,
+            <code>attester = the World</code>.</p>
+          <p class="note">This match was executed against the patched bytecode in a local EVM (solc 0.8.24,
+            shanghai, optimizer 200) and serialized frame by frame into <code>web/demo-match.json</code>. It is a
+            recording, and the page says so in its header; the numbers are the ones the hero image and the card
+            quote. One receipt on testnet is the deploy-day check.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="Why it can't be faked">
+    <div class="sheet">
+      <div class="folio"><span>Folio 06 · <b>the guarantees</b></span><span>and the limits, stated</span></div>
+      <h2>Not "trustless". Just fewer doors.</h2>
+      <div class="cols three">
+        <div>
+          <ul class="ticks yes">
+            <li><b>Write-once pin.</b> <code>setWorld()</code> cannot be re-pointed (<code>WorldAlreadySet</code>),
+              and <code>attest()</code> has one allowed caller.</li>
+            <li><b>No self-certification.</b> The subject is <code>msg.sender</code> of a World call; the World is
+              the only wallet the log answers.</li>
+            <li><b>Match-scoped pacts.</b> A shot is only a betrayal if the pact was made in <em>this</em> match.</li>
+            <li><b>Credit is not additive.</b> Break the pact you were honoured for and the kept-count comes back.</li>
+            <li><b>Board rotation is owner-gated</b>, so nobody on a public testnet can freeze every live player.</li>
+          </ul>
+        </div>
+        <div>
+          <ul class="ticks">
+            <li><b>A plain kill is not recorded.</b> Only a betrayed pact mints. We could add a KILL kind; we
+              chose not to, because an achievement is not a fact about character.</li>
+            <li><b>The owner can rotate the match</b> (and <code>HonorLog.renounceOwner()</code> can freeze the
+              attester pin permanently — after the demo, not before).</li>
+            <li><b>There is no revocation of a true record</b> and no privacy layer: everything is public, and
+              that is the point.</li>
+            <li><b>Gameplay is not the contribution.</b> A 16×16 arena is a demonstration surface for one
+              primitive: attestation by constraint.</li>
+          </ul>
+        </div>
+        <div class="plate">
+          <svg viewBox="0 0 300 300" role="img" aria-label="A night board with hairline grid and two square seals adjacent to each other">
+            <g stroke="#2A3345" stroke-width="1">
+              <path d="M0 0H300M0 27H300M0 54H300M0 81H300M0 108H300M0 135H300M0 162H300M0 189H300M0 216H300M0 243H300M0 270H300M0 297H300" />
+              <path d="M0 0V300M27 0V300M54 0V300M81 0V300M108 0V300M135 0V300M162 0V300M189 0V300M216 0V300M243 0V300M270 0V300M297 0V300" />
+            </g>
+            <rect x="135" y="135" width="21" height="21" fill="#8A6A22" stroke="#E4D9C5" stroke-width="2" />
+            <rect x="162" y="135" width="21" height="21" fill="#9B2C2C" stroke="#E4D9C5" stroke-width="2" />
+            <path d="M156 145H162" stroke="#E4D9C5" stroke-width="2" />
+          </svg>
+          <p class="cap">adjacency is a precondition of every verb: you cannot owe a mercy at a distance</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="Why Monad">
+    <div class="sheet">
+      <div class="folio"><span>Folio 07 · <b>the chain</b></span><span>the property we actually exercise</span></div>
+      <h2>On a 12-second chain this is a form submission.<br />On a 300-millisecond one it is a moment.</h2>
+      <div class="cols">
+        <div>
+          <ul class="ticks yes">
+            <li><b>The attested write lands in the same breath as the move.</b> A mercy you have to wait four
+              blocks to confirm is a tweet; one that paints inside the next block is a fact.</li>
+            <li><b>Non-conflicting parallel writes.</b> Two players touch different storage slots, so both mash
+              <code>move</code> and both land. The conflict that <em>does</em> replay — the shot at the shared
+              <code>hp</code> — is the game.</li>
+            <li><b>Gas is a limit, not a guess.</b> Monad charges <code>gas_limit</code>, so the UI sends tight
+              per-verb caps (45k–420k, measured cold + 20%) instead of letting a wallet pad it.</li>
+            <li><b>Small state, honestly sized.</b> 11,120 bytes of runtime, 14 typed errors, no proxy, no
+              framework — the whole thing is auditable in one sitting.</li>
+          </ul>
+        </div>
+        <table>
+          <caption>numbers we will say out loud, and where they come from</caption>
+          <tr><th>claim</th><th class="num">figure</th><th>source</th></tr>
+          <tr><td>average block time</td><td class="num">303 ms</td><td>measured, public stats</td></tr>
+          <tr><td>finality</td><td class="num">~600 ms</td><td>docs (two blocks)</td></tr>
+          <tr><td>median fee</td><td class="num">0.0542 MON</td><td>measured, public stats</td></tr>
+          <tr><td>peak sustained TPS</td><td class="num">230</td><td>measured, 1 minute</td></tr>
+          <tr class="key"><td>the whole match, 20 txs</td><td class="num">1,532,906 gas</td><td>our recording</td></tr>
+          <tr><td>a pact, cold</td><td class="num">338,508 gas</td><td>our recording</td></tr>
+          <tr><td>tests / runtime probes</td><td class="num">16 / 27</td><td>Foundry, /tmp harness</td></tr>
+        </table>
+      </div>
+      <p class="note">We do not claim 10,000 TPS. A 16×16 match does not demonstrate it and we would rather be
+        right in front of you. Testnet only — chain id 10143, pinned in the UI, mainnet refused with a visible
+        warning.</p>
+    </div>
+  </section>
+
+  <!-- 8 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="State of play">
+    <div class="sheet">
+      <div class="folio"><span>Folio 08 · <b>state of play</b></span><span>what is built, what is a deploy</span></div>
+      <h2>Everything except the transaction.</h2>
+      <div class="cols">
+        <ul class="ticks yes">
+          <li><b>Contracts:</b> patched guards, write-once attester, match-scoped pacts, revocable credit,
+            16 Foundry tests, 27 runtime probes written against the compiled bytecode.</li>
+          <li><b>Front end:</b> one HTML file, <code>ethers</code> and the typefaces vendored, no build step, no
+            CDN. Boots <b>read-only</b> over the public RPC with no wallet; a spectator sees both players from
+            <code>Spawned</code>/<code>Moved</code>/<code>Shot</code> plus a bounded log scan.</li>
+          <li><b>Nothing configured?</b> it plays the recorded match and labels itself: "nothing signed, nothing
+            spent". The fallback <em>is</em> the demo, not a compromise.</li>
+          <li><b>Interface:</b> a canal-city notary's register — paper chrome, night playfield, square seals, a
+            dated HonorLog docket, radius 0. Encoded as 46 machine checks, because a design rule nobody verifies
+            decays.</li>
+          <li><b>Deck, card copy, deploy runbook, submission sheet</b> — <code>SUBMISSION.md</code>,
+            <code>DEPLOY.md</code>, <code>DEEPDIVE.md</code> with the audit trail.</li>
+        </ul>
+        <div>
+          <h3 style="font-family:var(--register);font-size:24px;font-weight:500;margin:0 0 12px">Left, and only a human at a laptop can do it</h3>
+          <ol class="items">
+            <li><span class="no">1.</span><div><h3>Claim testnet MON</h3><p>on the Blitz platform (the wallet the event associates with your entry), and the public faucet for the second.</p></div></li>
+            <li><span class="no">2.</span><div><h3>Deploy</h3><p><code>forge script … --rpc-url monad_testnet --broadcast --legacy</code> — three txs, and <code>web/addresses.json</code> appears by itself.</p></div></li>
+            <li><span class="no">3.</span><div><h3>Confirm and verify</h3><p><code>HonorLog.world() == World</code>, <code>currentMatch()</code> non-zero, source verified so a judge can call <code>verify()</code> in the explorer.</p></div></li>
+            <li><span class="no">4.</span><div><h3>Publish</h3><p>Pages on <code>/web</code>, then open the Live URL on a phone you are not holding. Never <code>localhost</code>.</p></div></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 ───────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="Try it">
+    <div class="sheet">
+      <div class="folio"><span>Folio 09 · <b>try it yourself</b></span><span>60 seconds, no account with us</span></div>
+      <h2>The demo is deliberately adversarial to a pitch deck.</h2>
+      <div class="cols">
+        <ol class="items">
+          <li><span class="no">1.</span><div><h3>Open the Live URL</h3><p>Two wallet tabs, two browser profiles, or one laptop and a phone. <b>Connect</b> adds Monad testnet if your wallet is elsewhere; the page refuses mainnet out loud.</p></div></li>
+          <li><span class="no">2.</span><div><h3>Both spawn</h3><p>Coordinates come from block entropy, so neither of you chooses where you land. Within ~2 s each board shows the other — or paste their address into <b>Watch</b>.</p></div></li>
+          <li><span class="no">3.</span><div><h3>Try to fake a mercy</h3><p>Click <b>Spare</b> on a healthy neighbour: <code>NotKillShot</code>. That refusal is the product.</p></div></li>
+          <li><span class="no">4.</span><div><h3>Pact → wound → Spare → Shoot</h3><p>The docket gains a BETRAYAL whose <code>refUID</code> is your own pact. Click its uid to call <code>verify()</code> in the page.</p></div></li>
+          <li><span class="no">5.</span><div><h3>Then rotate the match</h3><p>Board cleared, scores zero — the four records still resolve. Read them from the explorer's Read tab instead of from us.</p></div></li>
+        </ol>
+        <div class="plate">
+          <svg viewBox="0 0 432 190" role="img" aria-label="A docket entry: dated, BETRAYAL, parties, uid and verify">
+            <rect width="432" height="190" fill="#1A2330" />
+            <g font-family="IBM Plex Mono, monospace" fill="#E4D9C5">
+              <text x="18" y="34" font-size="13" fill="#C4B49A">29.08.2026 · BLK 22</text>
+              <text x="18" y="82" font-size="30" font-family="Newsreader, Georgia, serif">BETRAYAL</text>
+              <text x="18" y="112" font-size="13">0x1563…5508 → 0x5cbd…07fb</text>
+              <text x="18" y="138" font-size="13" fill="#C4B49A">uid 0x2eba5ddb54dba05a…634d6b</text>
+              <text x="18" y="164" font-size="13" fill="#C4B49A">refUID 0x0a94705be22be801…54a5dd</text>
+            </g>
+            <rect x="330" y="60" width="84" height="26" fill="none" stroke="#E4D9C5" stroke-width="1" />
+            <text x="345" y="78" font-size="13" font-family="IBM Plex Mono, monospace" fill="#E4D9C5">verify()</text>
+            <path d="M318 73H330" stroke="#8A6A22" stroke-width="2" />
+          </svg>
+          <p class="cap">one entry, four numbers, no dependence on our server</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 ──────────────────────────────────────────────────────────── -->
+  <section class="slide" data-title="The line">
+    <div class="sheet">
+      <div class="folio"><span>Folio 10 · <b>the closer</b></span><span>then your questions</span></div>
+      <h1 style="font-size:56px;max-width:24ch">If my laptop dies,<br />the chain still remembers<br />who was spared.</h1>
+      <p class="lede">That is not a metaphor about resilience. It is a description of a <code>view</code> function
+        on 3,425 bytes of runtime code, with one writer, pinned once, and no way to certify yourself.</p>
+      <div class="strip">
+        <div><b>Code</b><span>github.com/knarayanareddy/keepsake</span></div>
+        <div><b>Live</b><span>https://…github.io/keepsake/</span></div>
+        <div><b>Read</b><span>DEEPDIVE.md — the audit, C1…C12</span></div>
+        <div><b>Deploy</b><span>DEPLOY.md — testnet runbook</span></div>
+      </div>
+      <p class="note">Ask the hard ones: why not EAS directly · what stops spam · why a kill writes nothing ·
+        why not a bigger board. All four are answered in the repo, with numbers.</p>
+    </div>
+  </section>
+
+</div>
+
+<nav class="rail" aria-label="slide navigation">
+  <span id="counter">01 / 11</span>
+  <div class="marks" id="marks"></div>
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> move · <kbd>F</kbd> fullscreen · <kbd>P</kbd> print</span>
+</nav>
+
+<script>
+  const slides = [...document.querySelectorAll(".slide")];
+  const marks = document.getElementById("marks");
+  let i = 0;
+
+  slides.forEach((s, n) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.title = (n + 1) + " · " + s.dataset.title;
+    b.setAttribute("aria-label", b.title);
+    b.addEventListener("click", () => go(n));
+    marks.appendChild(b);
+  });
+
+  function go(n, push = true) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle("on", k === i));
+    [...marks.children].forEach((b, k) => b.setAttribute("aria-current", k === i ? "true" : "false"));
+    document.getElementById("counter").textContent =
+      String(i + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    document.title = (i + 1) + "·" + slides[i].dataset.title + " — KEEPSAKE";
+    if (push) location.hash = "#" + (i + 1);
+    slides[i].querySelector(".sheet").scrollTop = 0;
+    slides[i].scrollTop = 0;
+  }
+
+  addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); go(i + 1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(i - 1); }
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(slides.length - 1);
+    else if (e.key.toLowerCase() === "f") {
+      document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+    } else if (e.key.toLowerCase() === "p") { print(); }
+  });
+
+  // click anywhere on the sheet turns the page; the rail and links do not
+  document.getElementById("deck").addEventListener("click", (e) => {
+    if (e.target.closest("a,button,pre,details,summary")) return;
+    go(e.clientX > innerWidth * 0.28 ? i + 1 : i - 1);
+  });
+
+  addEventListener("hashchange", () => {
+    const n = parseInt(location.hash.slice(1), 10);
+    if (Number.isFinite(n) && n - 1 !== i) go(n - 1, false);
+  });
+
+  // touch: a swipe is a page turn, so this survives a phone check before the pitch
+  let x0 = null;
+  addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener("touchend", (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 48) go(i + (dx < 0 ? 1 : -1));
+    x0 = null;
+  }, { passive: true });
+
+  go(Number.isFinite(parseInt(location.hash.slice(1), 10)) ? parseInt(location.hash.slice(1), 10) - 1 : 0, false);
+</script>
+</body>
+</html>
