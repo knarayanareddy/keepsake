@@ -10,8 +10,9 @@ import {World} from "../contracts/World.sol";
 /// `attest` revert NotWorld, i.e. a silently dead demo.
 ///
 ///   forge install foundry-rs/forge-std          # once; the repo ships no lib/
+///   export PRIVATE_KEY=0x…            # foundry reads this env var; no --private-key flag needed
 ///   forge script script/Deploy.s.sol:Deploy --rpc-url monad_testnet --broadcast \
-///     --private-key $PK --legacy --gas-estimate-multiplier 120 --verify
+///     --legacy --gas-estimate-multiplier 120 --verify
 ///
 /// `--legacy` because 1559 estimation is flaky on the testnet endpoint; the multiplier is the only
 /// padding to use, since Monad charges gas_limit and a wallet pads on its own. `--verify` resolves

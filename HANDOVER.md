@@ -188,6 +188,9 @@ All under `keepsake/` (workspace root may be `keepsake` or home containing it).
 
 ### Deploy
 
+`DEPLOY.md` (repo root) is the operational runbook — wallet + MON, the deploy command, what to confirm in the
+explorer, verification, publishing, rehearsal. Summary of the same in `SUBMISSION.md` §4.
+
 ```bash
 cd keepsake
 # need forge-std: forge install foundry-rs/forge-std

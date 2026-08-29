@@ -120,6 +120,21 @@ if (addrs) {
   warn.push("web/addresses.json — absent: expected before the deploy, and the UI falls back to preview mode");
 }
 
+console.log("\nDEPLOY.md — the runbook a human follows at the venue");
+const run = rd("DEPLOY.md") || "";
+ok(!!run, "runbook exists", "the steps that need a laptop and a network are written down, not remembered");
+ok(/world\(\)\(address\)/.test(run) && /currentMatch\(\)\(bytes32\)/.test(run), "post-deploy probes are copy-pasteable",
+  "cast calls that answer 'did setWorld land' and 'is a match live' without opening a browser");
+ok(/setWorld is the one silent failure|skipping `setWorld` is the one silent failure/.test(run), "the silent failure is named",
+  "an un-pinned HonorLog plays perfectly and logs nothing");
+ok(/--legacy/.test(run) && /gas-estimate-multiplier/.test(run), "flags carried in the runbook", "same flags as the deploy header");
+ok(!/--private-key \$PK/.test(run + deploy + readme + sub), "no key in a shell placeholder", "PRIVATE_KEY in the env only");
+ok(/Never in a file|never committed/.test(run), "key hygiene stated", "the runbook says out loud not to commit the deployer key");
+const rpcs = [...run.matchAll(/--rpc-url\s+([A-Za-z0-9_${}.\/-]+)/g)].map((m) => m[1]);
+ok(rpcs.length > 0 && rpcs.every((r) => r === "monad_testnet" || r === "monad"), "mainnet is not the default",
+  `${rpcs.length} --rpc-url uses in the runbook, all of them ${[...new Set(rpcs)].join("/")}; no mainnet endpoint is targeted`);
+ok(/phone you are not holding|phone you aren't holding/.test(run), "the stranger test is in the runbook", "Live must survive a voter's device");
+
 console.log(fail.length ? `\n✗ ${fail.length} platform-brief violation${fail.length > 1 ? "s" : ""}:\n  ${fail.join("\n  ")}` : "\n✓ every checked clause of AGENT_MONAD/AGENT_BLITZ holds");
 if (warn.length) console.log(`  · ${warn.length} note${warn.length > 1 ? "s" : ""}: ${warn.join(" · ")}`);
 console.log(`  ${fail.length ? "failing" : "clean"} · warnings ${warn.length}`);

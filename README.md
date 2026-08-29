@@ -50,10 +50,14 @@ Deliberately **not** enforced: a kill writes no attestation (only a *betrayed* k
 
 ```bash
 forge install foundry-rs/forge-std
+export PRIVATE_KEY=0x…            # foundry reads this env var; no --private-key flag
 
 forge script script/Deploy.s.sol:Deploy --rpc-url monad_testnet --broadcast \
-  --private-key $PK --legacy --gas-estimate-multiplier 120
+  --legacy --gas-estimate-multiplier 120
 ```
+
+`DEPLOY.md` is the full runbook: wallet and faucet order of operations, what to confirm in the explorer after
+broadcast, source verification, publishing, and the two-profile rehearsal.
 
 `monad_testnet` is the alias in `foundry.toml` (10143). `--legacy` because 1559 estimation is flaky on the
 testnet endpoint, and the multiplier is the only padding to allow: **Monad charges `gas_limit`, not `gas_used`**,

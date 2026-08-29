@@ -49,7 +49,8 @@ on mainnet — so a spare becomes a fact in the same breath as the move, not a 1
 > The rules are guards, not vibes. `spare` reverts `NotKillShot()` unless the victim is at ≤ 2 hp *and still
 > armed*, so "I had the kill shot and chose not to take it" cannot be claimed by someone at full health.
 > `HonorLog.setWorld()` is **write-once** and `attest()` accepts exactly one caller — there is no admin path
-> to rewrite history, and `renounceOwner()` can make that permanent. `startMatch()` is deployer-gated, so
+> to rewrite history, and `HonorLog.renounceOwner()` can freeze that pin permanently. The one owner lever that
+> does exist, `World.startMatch()`, rotates the board; it cannot forge a record. `startMatch()` is deployer-gated, so
 > nobody on a public testnet can rotate the board out from under you. A kill **deliberately writes nothing**:
 > the record you get is the record of a choice, not of a body count.
 >
@@ -72,10 +73,14 @@ on mainnet — so a spare becomes a fact in the same breath as the move, not a 1
 
 ## 4 · Make the Live link actually work (before 17:30)
 
+`DEPLOY.md` (repo root) is the step-by-step: wallet → MON → deploy → four explorer confirmations → verify →
+publish → rehearse. This section is the short version of the same list.
+
 ```bash
 forge install foundry-rs/forge-std && forge test -vv                     # 16 tests
+export PRIVATE_KEY=0x…                                  # foundry reads the env var
 forge script script/Deploy.s.sol:Deploy --rpc-url monad_testnet --broadcast \
-  --private-key $PK --legacy --gas-estimate-multiplier 120 --verify       # writes web/addresses.json
+  --legacy --gas-estimate-multiplier 120 --verify        # writes web/addresses.json
 git add web/addresses.json && git commit -m "deployed: testnet addresses" && git push   # the zero-config handoff
 ```
 
