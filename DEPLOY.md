@@ -23,9 +23,22 @@ you make them true on the chain the event funds. Budget ~35 minutes, start with 
    1. **`blitz.devnads.com` → Amsterdam → the event's MON claim** (approved attendees). Prefer this one — it is the
       wallet the platform associates with your entry, and it's what the "I funded both demo wallets" answer is.
    2. `https://faucet.monad.xyz` or `https://testnet.monad.xyz/faucet` — for the second wallet, or as backup.
-3. Fund **two** addresses: the deployer and player B. Everything except reads costs gas — `spawn` ≈ 57k,
-   `move` ≈ 13k, `pact` ≈ 339k cold — at a ~100 gwei base fee that is a fraction of a millimon, so one drip per
-   wallet is plenty. If the page's fee line reads `≈0.00000000 MON`, it is working, not broken.
+3. Fund **two** addresses: the deployer and player B. Reads are free; everything else pays at the testnet's
+   **102 Gwei** base fee (base 100 + 2 tip), verified from a live transaction: a bare 21,165-gas transfer cost
+   **0.00215883 MON** = `gas × 102 Gwei` exactly.
+
+   | what | gas | ≈ MON |
+   |---|---|---|
+   | `move` | 12,778 | 0.0013 |
+   | `spawn` | 57,165 | 0.0058 |
+   | `pact`, cold | 338,508 | 0.0345 |
+   | the whole 20-tx match | 1,532,906 | 0.1564 |
+   | all three deploys + `setWorld` | ≈2,060,000 | 0.2101 (0.2521 at the 120% multiplier) |
+   | same match, every verb at its **cap** | 3,996,200 | 0.4076 |
+
+   One drip is **50 MON**, so deploy + ten full matches is about 3.7 MON and 46 remains. Fund both and stop
+   thinking about balances. A spawn should put `≈0.00583083 MON` in the page's fee line — if it ever reads
+   `≈0.00000000`, no receipt was read, which is a bug to report, not cheap gas.
 4. Network, added by hand or by the page: chain id **10143** · RPC `https://testnet-rpc.monad.xyz` ·
    symbol **MON** (18 decimals) · explorer `https://testnet.monadvision.com` · `wss://testnet-rpc.monad.xyz` if a
    tool wants WS. Venue wifi congested → `https://rpc-testnet.monadinfra.com` (20 rps, **no batching**).

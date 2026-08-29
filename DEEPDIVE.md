@@ -117,7 +117,11 @@ Static reading only gets you "the code says X". I built a harness that **deploys
 | `setWorld` (re-point) | 7,552 | 24,652 | 3 |
 | deploy `HonorLog` / `World` (creation tx) | 671,416 | 1,392,941 | — |
 
-Deploy total ≈ **2.06M gas** for the pair plus `setWorld` — well inside any Monad block and worth knowing for the "prefund the wallet" step: at testnet rates a few gwei that is a rounding error, but a *cold* wallet with a dust faucet drip can fail creation, so request the faucet amount twice.
+Deploy total ≈ **2.06M gas** for the pair plus `setWorld` — well inside any Monad block and worth knowing for the "prefund the wallet" step. At the testnet's measured **102 Gwei** base fee (confirmed on-chain:
+a 21,165-gas transfer cost 0.00215883 MON, i.e. `gas × 102 Gwei` with no fudge factor) that is **≈0.21 MON**, or
+0.25 MON with `--gas-estimate-multiplier 120`. One faucet drip is 50 MON, so the failure mode is not "too little
+MON" but "**zero** MON": an unfunded deployer hits `insufficient funds` on the first broadcast, after a
+simulation that looked completely fine.
 
 Read of the table: a *movement* is ~13k, every *attesting verb* is ~250–320k (the cost is the 5 SSTOREs + event + array push, not the game logic). At Monad fees that is still pennies; but it means **the board is cheap and the drama is expensive**, so a 90-second demo of 4 moves + 3 verbs is ~25× the gas of a casual 25-move game — nothing to fix, just a good fact to have ready if a judge asks about scaling.
 

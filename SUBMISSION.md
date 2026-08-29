@@ -44,7 +44,9 @@ on mainnet — so a spare becomes a fact in the same breath as the move, not a 1
 > Two contracts, **11,120 bytes of runtime code** (HonorLog 3,425 B, World 7,695 B — 14 % and 31 % of
 > EIP-170). A move costs **12,778 gas**; an attested fact — the pact, the spare, the betrayal — costs
 > **233k–339k** cold, and the whole 20-transaction match in our recorded game is **1,532,906 gas**: about
-> 0.0015 MON at 1 gwei, and the UI prints the number it read off your own receipts, not off a slide.
+> **0.156 MON** at the testnet's measured 102 Gwei base fee — and the UI prints the number it read off your own
+> receipts, not off a slide. (Cross-checked on-chain: a bare 21,165-gas transfer cost 0.00215883 MON, which is
+> exactly `gas × 102 Gwei`, so nothing here needs a fudge factor.)
 >
 > The rules are guards, not vibes. `spare` reverts `NotKillShot()` unless the victim is at ≤ 2 hp *and still
 > armed*, so "I had the kill shot and chose not to take it" cannot be claimed by someone at full health.
