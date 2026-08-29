@@ -25,7 +25,7 @@ convert -size 1200x630 xc:'#07080c' \
     -annotate +640+350 "  betray  carries refUID of your own pact" \
     -annotate +640+374 "  a kill  writes nothing. no record, no credit" \
     -annotate +640+398 "  one attester, pinned write-once, no admin call" \
-  -fill '#8a8474' -pointsize 14 -annotate +640+440 $'player --attest()--> World --attest()--> HonorLog' \
+  -fill '#8a8474' -pointsize 14 -annotate +640+440 $'player --pact|spare|shoot()--> World --attest()--> HonorLog' \
     -annotate +640+462 "        only caller accepted; everyone else reverts" \
   -fill '#e8e4d8' -pointsize 14 -annotate +640+500 $'each fact is an ERC-721 soulbound to its subject:' \
     -annotate +640+522 "2 contracts · 11 KB runtime · 16 tests · no tokens" \
