@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KEEPSAKE</title>
+  <style>
+    :root {
+      --bg: #07080c;
+      --ink: #e8e4d8;
+      --dim: #8a8474;
+      --gold: #d4b56a;
+      --blood: #c45c4a;
+      --ok: #7d9b6a;
+      --line: #1c1e26;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: "Iowan Old Style", Palatino, Georgia, serif;
+      min-height: 100vh;
+    }
+    header {
+      padding: 1.2rem 1.5rem 0.6rem;
+      border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+    }
+    h1 { font-size: 1.1rem; letter-spacing: 0.28em; font-weight: 500; margin: 0; }
+    .tag { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.08em; }
+    main { display: grid; grid-template-columns: 1fr 320px; gap: 0; max-width: 1100px; margin: 0 auto; }
+    @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+    #boardWrap { padding: 1.25rem; }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      aspect-ratio: 1;
+      border: 1px solid var(--line);
+      background: #0c0e14;
+    }
+    .cell {
+      border: 1px solid #12141c; position: relative; cursor: pointer;
+    }
+    .cell.me { background: #1a2430; }
+    .cell.them { background: #241818; }
+    .dot {
+      position: absolute; inset: 18%; border-radius: 50%;
+      background: var(--gold);
+    }
+    .dot.other { background: var(--blood); }
+    .dot.dead { background: #333; opacity: 0.4; }
+    aside {
+      border-left: 1px solid var(--line);
+      padding: 1.25rem;
+      font-size: 0.92rem;
+    }
+    button {
+      background: transparent; color: var(--ink);
+      border: 1px solid var(--gold); padding: 0.45rem 0.7rem;
+      font-family: inherit; letter-spacing: 0.06em; cursor: pointer; margin: 0.15rem 0.15rem 0.15rem 0;
+    }
+    button:hover { background: #16140e; }
+    button.danger { border-color: var(--blood); }
+    button.ok { border-color: var(--ok); }
+    input, select {
+      width: 100%; background: #0c0e14; color: var(--ink);
+      border: 1px solid var(--line); padding: 0.4rem; margin: 0.3rem 0 0.7rem;
+      font-family: ui-monospace, monospace; font-size: 0.75rem;
+    }
+    .log {
+      font-family: ui-monospace, monospace; font-size: 0.68rem;
+      color: var(--dim); max-height: 220px; overflow: auto;
+      white-space: pre-wrap; line-height: 1.45;
+    }
+    .uid { color: var(--gold); word-break: break-all; }
+    h2 { font-size: 0.7rem; letter-spacing: 0.2em; color: var(--dim); font-weight: 500; }
+    .stat { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>KEEPSAKE</h1>
+    <div class="tag">THE WORLD IS THE ONLY ATTESTER · YOU CANNOT CERTIFY YOURSELF</div>
+  </header>
+  <main>
+    <div id="boardWrap">
+      <div id="board"></div>
+      <p class="tag" style="margin-top:0.8rem">Click a cell: move if empty (1 step), else target that player. Adjacent only.</p>
+    </div>
+    <aside>
+      <button id="connect">Connect</button>
+      <button id="spawn">Spawn</button>
+      <div class="stat"><span>me</span><span id="meAddr">—</span></div>
+      <div class="stat"><span>hp / ammo</span><span id="vitals">—</span></div>
+      <div class="stat"><span>target</span><span id="tgt">—</span></div>
+      <h2>VERBS</h2>
+      <button class="ok" id="pact">Pact →</button>
+      <button class="ok" id="spare">Spare</button>
+      <button class="danger" id="shoot">Shoot</button>
+      <button id="seal">Seal me</button>
+      <h2>HONORLOG</h2>
+      <div class="log" id="log">attestations appear the instant a verb fires.</div>
+      <h2>VERIFY UID</h2>
+      <input id="uidIn" placeholder="0x…" />
+      <button id="verify">verify()</button>
+      <div class="log uid" id="verifyOut"></div>
+      <h2>DEPLOY</h2>
+      <input id="worldIn" placeholder="World address" />
+      <input id="logIn" placeholder="HonorLog address" />
+      <button id="saveAddr">Use addresses</button>
+    </aside>
+  </main>
+  <script type="module">
+    import { BrowserProvider, Contract, Interface } from "https://esm.sh/ethers@6.13.4";
+
+    const WORLD_ABI = [
+      "function currentMatch() view returns (bytes32)",
+      "function spawn()",
+      "function move(int8 dx, int8 dy)",
+      "function pact(address other)",
+      "function spare(address other)",
+      "function shoot(address other)",
+      "function sealMe()",
+      "function viewPlayer(address) view returns (tuple(uint8 x,uint8 y,uint8 hp,uint8 ammo,bool alive,bool joined,bytes32 matchId,uint16 pactKept,uint16 pactBroken,uint16 spared))",
+      "event Spawned(bytes32 matchId,address player,uint8 x,uint8 y)",
+      "event Moved(address player,uint8 x,uint8 y)",
+      "event Shot(address shooter,address victim,uint8 hpLeft,bool killed)",
+    ];
+    const LOG_ABI = [
+      "function get(bytes32 uid) view returns (tuple(bytes32 uid,bytes32 schema,address attester,address subject,address other,bytes32 matchId,uint64 blockNumber,bytes32 refUID,uint8 kind,uint8 extra,bool revoked))",
+      "function verify(bytes32 uid) view returns (bool ok,bytes32 schema,address subject,address other,uint8 kind,bytes32 refUID)",
+      "function countOf(address) view returns (uint256)",
+      "function uidAt(address,uint256) view returns (bytes32)",
+      "event Attested(bytes32 indexed uid,bytes32 indexed schema,address indexed subject,address attester,address other,bytes32 matchId,uint8 kind,bytes32 refUID)",
+    ];
+    const KIND = { 1: "PACT", 2: "SPARE", 3: "BETRAYAL", 4: "CONDUCT" };
+
+    const board = document.getElementById("board");
+    const cells = [];
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const d = document.createElement("div");
+        d.className = "cell";
+        d.dataset.x = x; d.dataset.y = y;
+        board.appendChild(d);
+        cells.push(d);
+      }
+    }
+
+    let provider, signer, world, honor, me, target;
+    const seen = new Map(); // address -> player snapshot
+
+    const $ = (id) => document.getElementById(id);
+    const note = (t) => { $("log").textContent = t + "\n" + $("log").textContent; };
+
+    function cellAt(x, y) { return cells[y * 16 + x]; }
+
+    function paint() {
+      cells.forEach((c) => { c.className = "cell"; c.innerHTML = ""; });
+      for (const [addr, p] of seen) {
+        if (!p.joined) continue;
+        const c = cellAt(p.x, p.y);
+        const dot = document.createElement("div");
+        const mine = me && addr.toLowerCase() === me.toLowerCase();
+        dot.className = "dot" + (mine ? "" : " other") + (p.alive ? "" : " dead");
+        c.appendChild(dot);
+        if (mine) c.classList.add("me");
+        else c.classList.add("them");
+      }
+    }
+
+    async function refreshKnown() {
+      if (!world || !me) return;
+      const addrs = new Set([me, ...seen.keys()]);
+      if (target) addrs.add(target);
+      for (const a of addrs) {
+        try { seen.set(a, await world.viewPlayer(a)); } catch {}
+      }
+      const p = seen.get(me);
+      if (p) $("vitals").textContent = `${p.hp} / ${p.ammo}` + (p.alive ? "" : "  dead");
+      paint();
+    }
+
+    cells.forEach((c) => {
+      c.onclick = async () => {
+        if (!world) return;
+        const x = +c.dataset.x, y = +c.dataset.y;
+        const meP = seen.get(me);
+        if (!meP) return;
+        let occupant;
+        for (const [addr, p] of seen) {
+          if (p.joined && p.x === x && p.y === y) occupant = addr;
+        }
+        if (occupant && occupant.toLowerCase() !== me.toLowerCase()) {
+          target = occupant;
+          $("tgt").textContent = occupant.slice(0, 8) + "…";
+          return;
+        }
+        const dx = x - meP.x, dy = y - meP.y;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== 1 && !(Math.abs(dx)+Math.abs(dy)===1)) {
+          note("move 1 chebyshev step");
+          return;
+        }
+        const tx = await world.move(dx, dy);
+        note("move " + tx.hash.slice(0, 10));
+        await tx.wait();
+        await refreshKnown();
+      };
+    });
+
+    $("connect").onclick = async () => {
+      provider = new BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      me = await signer.getAddress();
+      $("meAddr").textContent = me.slice(0, 6) + "…" + me.slice(-4);
+      const w = localStorage.getItem("ks_world");
+      const l = localStorage.getItem("ks_log");
+      if (w) { $("worldIn").value = w; $("logIn").value = l; wire(w, l); }
+    };
+
+    $("saveAddr").onclick = () => {
+      localStorage.setItem("ks_world", $("worldIn").value.trim());
+      localStorage.setItem("ks_log", $("logIn").value.trim());
+      wire($("worldIn").value.trim(), $("logIn").value.trim());
+    };
+
+    function wire(w, l) {
+      world = new Contract(w, WORLD_ABI, signer);
+      honor = new Contract(l, LOG_ABI, signer);
+      honor.on("Attested", (uid, schema, subject, attester, other, matchId, kind) => {
+        note(`${KIND[Number(kind)] || kind}\n${uid}\n${subject.slice(0,8)} → ${other.slice(0,8)}`);
+      });
+      refreshKnown();
+      setInterval(refreshKnown, 2000);
+    }
+
+    $("spawn").onclick = async () => {
+      const tx = await world.spawn();
+      note("spawn " + tx.hash.slice(0, 10));
+      await tx.wait();
+      await refreshKnown();
+    };
+
+    async function verb(fn) {
+      if (!target) return note("click an opponent first");
+      const tx = await world[fn](target);
+      note(fn + " " + tx.hash.slice(0, 10));
+      await tx.wait();
+      await refreshKnown();
+    }
+    $("pact").onclick = () => verb("pact");
+    $("spare").onclick = () => verb("spare");
+    $("shoot").onclick = () => verb("shoot");
+    $("seal").onclick = async () => {
+      const tx = await world.sealMe();
+      await tx.wait();
+      note("sealed");
+    };
+
+    $("verify").onclick = async () => {
+      const uid = $("uidIn").value.trim();
+      const r = await honor.verify(uid);
+      $("verifyOut").textContent = JSON.stringify({
+        ok: r.ok,
+        kind: KIND[Number(r.kind)] || String(r.kind),
+        subject: r.subject,
+        other: r.other,
+        schema: r.schema,
+        refUID: r.refUID,
+      }, null, 2);
+    };
+  </script>
+</body>
+</html>
