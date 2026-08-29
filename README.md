@@ -4,7 +4,7 @@ A 16×16 on-chain arena. **The World is the only attester.** You cannot certify 
 
 - **Web App Live**: `https://knarayanareddy.github.io/keepsake/web/`
 - **Interactive Slide Deck**: `https://knarayanareddy.github.io/keepsake/web/presentation.html`
-- **Live Arena Demo Site**: `https://01a04e41-ce7a-7ed9-9864-3df960d3deab.arena.site/`
+- **Live Arena Demo Site**: `https://01a04e41-2739-7fa4-a27e-c57c6d2dadad.arena.site/`
 - **Player & Operator Manual**: `https://knarayanareddy.github.io/keepsake/web/manual.html`
 - **Contracts (Monad Testnet 10143)**: World: `0xE19D44F5c7351b28e4DAaF0cfCA944FeDC2b6bBB` · HonorLog: `0x24ce27F66C18fF10C5C6B496F64774438cB1F4BC`
 - **Attester Security**: Owner renounced on `HonorLog` (`renounceOwner()` tx `0xe70a79803a228f2cd4370a3eed52fbadf10448440f0eb5d77ec3b660ef612304`). Write-once attester pin is permanently ownerless.
