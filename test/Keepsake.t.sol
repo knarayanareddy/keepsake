@@ -82,9 +82,10 @@ contract KeepsakeTest is Test {
         assertTrue(!ok, "verify() must return false, not revert");
     }
     function test_only_world_can_attest() public {
-        vm.prank(b);
+        bytes32 schema = log_.SCHEMA_SPARE();
         vm.expectRevert(HonorLog.NotWorld.selector);
-        log_.attest(log_.SCHEMA_SPARE(), b, a, bytes32(0), 2, 0, bytes32(0));
+        vm.prank(b);
+        log_.attest(schema, b, a, bytes32(0), 2, 0, bytes32(0));
     }
     function test_verify_exposes_the_attester() public {
         _happyPath();
@@ -149,6 +150,7 @@ contract KeepsakeTest is Test {
     }
     function test_C4_pact_does_not_leak_across_matches() public {
         vm.prank(a); w.pact(b);                          // pact in match 1
+        vm.roll(block.number + 1);
         w.startMatch();
         vm.prank(a); w.spawn();
         vm.prank(b); w.spawn();
@@ -158,12 +160,12 @@ contract KeepsakeTest is Test {
         assertEq(log_.countOf(a), n, "stale-match pact minted a Betrayal");   // red today
     }
     function test_C5_startMatch_is_gated() public {
-        bytes32 before = w.currentMatch();
+        vm.expectRevert(World.NotOwner.selector);
         vm.prank(b); w.startMatch();
-        assertEq(w.currentMatch(), before);                // a stranger cannot brick the live board
     }
     function test_C5b_owner_can_rotate_the_match() public {
         bytes32 before = w.currentMatch();
+        vm.roll(block.number + 1);
         w.startMatch();
         assertTrue(w.currentMatch() != before);
     }
@@ -173,6 +175,7 @@ contract KeepsakeTest is Test {
         vm.expectRevert(World.AlreadySealed.selector);
         vm.prank(a); w.sealMe();
         assertEq(log_.countOf(a) - n, 1);
+        vm.roll(block.number + 1);
         w.startMatch();
         vm.prank(a); w.spawn();
         vm.prank(a); w.sealMe();                          // a new match is a new fact
