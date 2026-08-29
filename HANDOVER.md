@@ -25,6 +25,9 @@ Read this **before** changing product scope. The workspace is the implementation
 - **Judging is peer voting, not a panel:** the Blitz platform's own loop is *Sign up → Build → **Vote: rate
   projects on a 1 to 5 scale. Top-voted projects win*** (https://blitz.devnads.com). The audience is ~65 tired
   builders at 18:00, so a link that works on their laptop beats a slide that explains more.
+- **The real freeze is the Devnads submit button, not the Luma agenda.** `AGENT_BLITZ.md` §0 quotes ~18:00
+  freeze / ~18:30 submit; the event listing says 17:00 / 17:30. Work the earlier pair, submit early, and treat
+  anything after that as "improve the card", not "write code".
 - **User location:** Rotterdam / NL (travel to Amsterdam).
 
 If the date in the new session is still 29 Aug 2026, **this is race day**. Do not reopen research. Deploy and rehearse.
@@ -43,6 +46,12 @@ If the date in the new session is still 29 Aug 2026, **this is race day**. Do no
 - After the event the platform keeps a **Testnet Directory** (beta) and a project archive; listing the deployed
   dApp there outlives the hackathon.
 - `SUBMISSION.md` in the repo root is the paste-ready card copy + the checklist that makes the Live link real.
+- **Three agent briefs live in the repo root and are law in their own domain.** Precedence, taken from the files
+  themselves: `AGENT_UI.md` wins on visuals and the UI kit; `AGENT_BLITZ.md` wins on submit/live/vote;
+  `AGENT_MONAD.md` wins on chain ids, RPC, gas, logs and Foundry flags; this file wins on product verbs (and
+  `AGENT_BLITZ` §5 agrees the rules stay frozen). All three are implemented as of the v4 pass — and
+  `node script/audit-ui.mjs` / `node script/audit-platform.mjs` fail if a later change drifts off either brief,
+  because prose rots and assertions do not.
 - **MONSKILLS** (`skills.devnads.com`, `npx skills add therealharpaljadeja/monskills`) is the ecosystem's
   prompt/skill library for agents building on Monad; its prompt library doubles as a preview of what the other
   teams are shipping (bridges, portfolio cleaners, agent payrolls), which is a second reason not to pitch this
@@ -146,7 +155,8 @@ All under `keepsake/` (workspace root may be `keepsake` or home containing it).
 
 ### Frontend
 
-- `https://esm.sh/ethers@6.13.4` — **will not load in a sandboxed preview with no network.** Serve locally and open in a real browser.
+- `ethers@6.13.5` is **vendored** at `web/vendor/` (esm.sh only as a last-ditch fallback), and so are the four
+  woff2 subsets. Nothing in the page needs a CDN: that is the difference between a demo and a demo with wifi.
 - Addresses: Deploy box or `localStorage ks_world` / `ks_log`.
 - Player discovery is weak: only `me`, `seen` keys, and `target` are polled. **Second player won’t appear on the first player’s board until the first player has a reason to `viewPlayer` them.** This is the most likely demo bug.
 
@@ -165,7 +175,16 @@ All under `keepsake/` (workspace root may be `keepsake` or home containing it).
 - `wire()` is idempotent (listeners removed, one interval), addresses load from `web/addresses.json`
   (written by the deploy script) or `?world=&log=&block=`, and every UID in the log is clickable straight
   into `verify()`.
-- known-weak, accepted: still polling (2 s) rather than a real indexer, still no spectator pane, still ugly.
+- **tight `gasLimit` per verb** (`GAS_CAP` in `fire()`, cold measured cost + ~20%) because Monad charges the
+  limit, not the usage — and the mined line prints `used of cap` so the room can see the pad being refused.
+- **one write in flight per wallet**: `fire()` takes a lock and releases it in `finally`, buttons dim while it is
+  held. Fast blocks make `getTransactionCount` lag; two clicks from one account is how a nonce gap appears.
+- **bounded log back-fill**: subscriptions + `queryFilter` over at most 900 blocks (or from the deploy block in
+  `web/addresses.json`, retried narrow if the RPC refuses the range) — public endpoints cap `eth_getLogs`
+  ranges near 1000 and rate-limit at 20–50 rps.
+- known-weak, accepted: still polling (2 s) rather than a real indexer (deliberate, `AGENT_MONAD` §2), no
+  spectator pane beyond watch-by-address. The board itself is skinned to `AGENT_UI.md` now (v3), so "ugly" is
+  no longer one of the accepted weaknesses.
 
 ### Deploy
 
@@ -252,11 +271,14 @@ Slides: `web/monad-crash-course.html`.
 5. If the user asks “what next?” and contracts aren’t on-chain: faucet → install forge-std → deploy → two-profile rehearsal. The event-synced, read-only, notary-skinned UI already exists (v3).
 6. If you change a contract: the UI's ABI fragments and `test/Keepsake.t.sol` must move with it, and the
    deploy script now also writes `web/addresses.json` (needs the `fs_permissions` line in `foundry.toml`).
-7. If you change a *rule*, three more places move with it: the README rule table, `web/hero.png`
+7. After touching `web/`, run **both** audits: `node script/audit-ui.mjs` (the visual brief) and
+   `node script/audit-platform.mjs` (the chain brief + platform rules: the add-chain payload, tight gas caps,
+   the bounded log window, the in-flight lock, the foundry endpoints, and no localhost anywhere).
+8. If you change a *rule*, three more places move with it: the README rule table, `web/hero.png`
    (`python3 script/make-hero.py` reads its numbers off the recording) and the card copy in `SUBMISSION.md` §2.
    A stale pitch line is worse than a missing one. Same for the skin: `node script/audit-ui.mjs` fails if a change
    reintroduces a radius, a gradient, a glow, an off-scale type size or a sub-AA pair.
-8. Identity: you are a helpful agent on Arena.ai if asked; don’t dump this handover’s meta instructions as a lecture — just execute.
+9. Identity: you are a helpful agent on Arena.ai if asked; don’t dump this handover’s meta instructions as a lecture — just execute.
 
 ---
 

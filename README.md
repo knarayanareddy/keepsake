@@ -2,6 +2,26 @@
 
 A 16×16 on-chain arena. **The World is the only attester.** You cannot certify yourself — you can only be witnessed.
 
+Live: `https://TODO` (GitHub Pages on this repo's `web/` — see SUBMISSION.md §4) · World: `0xTODO` · HonorLog: `0xTODO`
+Network: **Monad Testnet**, chain id `10143` · RPC: `https://testnet-rpc.monad.xyz` · Explorer: `https://testnet.monadvision.com`
+
+The two `TODO`s are filled by the commit `script/Deploy.s.sol` writes: they belong in `web/addresses.json` *and*
+here, and both must agree before anyone pastes the Live URL into a submission form.
+
+## Try it in 60 seconds
+
+1. Wallet on **Monad Testnet** (10143), some MON. The page adds the network for you on Connect if MetaMask is
+   pointed elsewhere — that one prompt is deliberate: wrong chain is how demos die silently.
+2. Open the Live URL, **Connect**, **Spawn**.
+3. Second wallet, same page, **Spawn**. If you do not see them, paste their address into **Watch**.
+4. Stand on adjacent cells. **Pact** → **Spare** (or **Shoot**).
+5. A UID appears in the docket. Paste it into `verify()` — in the page, or in the explorer's Read tab.
+
+Nothing on the page needs a wallet to *look*: with no wallet and no addresses it plays a recorded match
+(`web/demo-match.json`) and labels itself as exactly that.
+
+You cannot attest yourself. Spare and betrayal are facts that outlive the match.
+
 - `pact` — one-way, instant. A declares trust in B. B never agreed.
 - `spare` — you had the shot; you didn't take it. UID mints in that tx.
 - `shoot` — if you had a pact on them, this is `Betrayal` and `refUID` points at the Pact.
@@ -30,10 +50,15 @@ Deliberately **not** enforced: a kill writes no attestation (only a *betrayed* k
 
 ```bash
 forge install foundry-rs/forge-std
-export MONAD_RPC=https://testnet-rpc.monad.xyz
 
-forge script script/Deploy.s.sol:Deploy --rpc-url $MONAD_RPC --broadcast --private-key $PK
+forge script script/Deploy.s.sol:Deploy --rpc-url monad_testnet --broadcast \
+  --private-key $PK --legacy --gas-estimate-multiplier 120
 ```
+
+`monad_testnet` is the alias in `foundry.toml` (10143). `--legacy` because 1559 estimation is flaky on the
+testnet endpoint, and the multiplier is the only padding to allow: **Monad charges `gas_limit`, not `gas_used`**,
+so a wallet's generous default is money. The UI already sends tight caps per verb (measured cold costs in
+`web/demo-match.json` plus ~20%). `export MONAD_RPC=…` still works — `monad = "${MONAD_RPC}"` remains an alias.
 
 That prints both addresses, writes `web/addresses.json` (the UI loads it automatically — no
 pasting at the projector), and prints a ready-to-open URL with the addresses in the query string.

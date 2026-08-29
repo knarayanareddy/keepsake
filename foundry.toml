@@ -10,4 +10,12 @@ optimizer_runs = 200
 fs_permissions = [{ access = "read-write", path = "./web" }]
 
 [rpc_endpoints]
-monad = "${MONAD_RPC}"
+monad = "${MONAD_RPC}"          # the name the docs in this repo use; set MONAD_RPC to override
+monad_testnet = "https://testnet-rpc.monad.xyz"   # 10143 — the Blitz network (AGENT_MONAD §0)
+monad_mainnet = "https://rpc.monad.xyz"            # 143 — only if the organisers say so
+
+[etherscan]
+# MonadVision speaks the Etherscan verifier protocol and asks for no API key, hence "-".
+# forge verify-contract --rpc-url monad_testnet --verify is then enough; if a given Foundry build
+# disagrees about the custom chain, pass --verifier etherscan --verifier-url https://testnet.monadvision.com/api
+monad_testnet = { key = "-", chain = 10143, url = "https://testnet.monadvision.com/api", browser = "https://testnet.monadvision.com" }

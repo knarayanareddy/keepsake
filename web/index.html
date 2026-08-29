@@ -147,6 +147,7 @@
            max-height: 268px; overflow: auto; white-space: pre-wrap; }
     .log .rec { border-bottom: 1px solid var(--rule); padding: 7px 0; }
     .log .rec:hover { background: rgba(196, 180, 154, 0.22); }
+    body.busy .row button { opacity: 0.55; }   /* one write in flight per wallet (AGENT_MONAD §2) */
     .log .head { color: var(--ink-soft); }
     .log .k { font-family: var(--register); font-size: 19px; letter-spacing: 0.06em; }
     .uid { color: var(--ink); text-decoration: underline; text-decoration-color: var(--gilt);
@@ -388,24 +389,40 @@
       return (e?.shortMessage || e?.reason?.error || e?.message || String(e)).slice(0, 160);
     }
 
+    // Monad charges gas_limit, not gas_used (AGENT_MONAD §1), so a wallet's default pad is paid in full.
+    // These caps are the *cold* cost of each verb measured in web/demo-match.json plus ~20%: enough headroom
+    // that a worst-case slot turn cannot OOG at the projector, tight enough that nobody funds a MetaMask guess.
+    const GAS_CAP = { spawn: 90_000, move: 45_000, pact: 420_000, spare: 380_000, shoot: 380_000, sealMe: 300_000 };
+    let inflight = null;   // §2: fast blocks make getTransactionCount lag — one write per wallet at a time
+
     // ── every on-chain write goes through here: no silent failures on stage ──
     async function fire(label, fnName, ...args) {
       if (!world) { note("no contract wired — paste the two addresses under DEPLOY", "err"); return null; }
+      if (inflight) { note("one at a time — " + inflight + " has not landed yet", "err"); return null; }
+      const cap = GAS_CAP[fnName];
+      inflight = label;
       try {
-        const tx = await world[fnName](...args);
+        // the class toggle lives inside the try on purpose: everything that can throw after the lock is
+        // taken must reach the finally that gives it back, or the board deadlocks one click from here
+        document.body?.classList?.add("busy");
+        const tx = await world[fnName](...args, cap ? { gasLimit: cap } : {});
         note(label + " " + tx.hash.slice(0, 12) + " …");
         const r = await tx.wait();
-        note(label + " mined in " + r.blockNumber, "live");
+        note(label + " mined in " + r.blockNumber + (cap
+          ? ` · ${Number(r.gasUsed ?? 0n).toLocaleString()} of ${cap.toLocaleString()} gas (the limit is what you pay on Monad)` : ""), "live");
         try {
           const gas = BigInt(r.gasUsed ?? 0n), price = BigInt(r.gasPrice ?? r.effectiveGasPrice ?? 0n);
           bill.txs++; bill.gas += Number(gas); bill.wei += gas * price;
           $("bill").textContent = `${bill.txs} tx · ${bill.gas.toLocaleString()} gas · ≈${(Number(bill.wei) / 1e18).toFixed(8)} MON`;
         } catch { /* receipt shape differs; the tx still landed */ }
-        await refreshKnown();
         return r;
       } catch (e) {
         note("✗ " + label + ": " + why(e), "err");
         return null;
+      } finally {
+        inflight = null;
+        document.body?.classList?.remove("busy");
+        try { await refreshKnown(); } catch { /* the paint can wait for the next poll; the lock cannot */ }
       }
     }
 
@@ -658,11 +675,21 @@
       // so a scan is mandatory — subscriptions alone show you only what happens next.
       try {
         const latest = await rp.getBlockNumber();
-        const from = Number(fromBlock ?? localStorage.getItem("ks_block") ?? 0);
-        const span = Math.max(0, Math.min(from > 0 ? from : Math.max(0, latest - 20000), latest));
-        const evs = await roW.queryFilter(roW.filters.Spawned(), span, "latest");
+        const want = Number(fromBlock ?? localStorage.getItem("ks_block") ?? 0);
+        // Docs cap eth_getLogs ranges on the public endpoints (and rate-limit them hard), so the window is
+        // bounded: from the deploy block when we know it, otherwise the last 900 blocks. A wide range is
+        // tried once and narrowed on failure, instead of timing the whole board out in silence.
+        let span = want > 0 ? want : Math.max(0, latest - 900);
+        let evs;
+        try {
+          evs = await roW.queryFilter(roW.filters.Spawned(), span, "latest");
+        } catch (e1) {
+          span = Math.max(0, latest - 900);
+          evs = await roW.queryFilter(roW.filters.Spawned(), span, "latest");
+          note("RPC refused that range; rescanned the last 900 blocks — web/addresses.json's deploy block widens it", "err");
+        }
         evs.forEach((e) => watch(e.args.player));
-        note(`scanned Spawned from block ${span} (${evs.length} hit${evs.length === 1 ? "" : "s"}) — latest ${latest}`, "live");
+        note(`scanned Spawned, ${span.toLocaleString()} → ${latest.toLocaleString()} (${evs.length} hit${evs.length === 1 ? "" : "s"})`, "live");
       } catch (e) { note("event backfill skipped: " + why(e), "err"); }
 
       try { window.__spareWindow = Number(await roW.SPARE_WINDOW()); } catch {}

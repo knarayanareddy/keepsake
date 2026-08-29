@@ -20,6 +20,21 @@ clicking a link on a laptop, not for three judges reading a repo.
 
 ## 2 · Card copy (paste this)
 
+**If the field is ~400 characters** (the platform's cards are short — this is the version that fits a phone screen):
+
+> KEEPSAKE is a 16×16 on-chain arena. Pact, spare, or betray — each mints an attestation. You cannot certify
+> yourself; the World contract is the only attester. A plain kill mints nothing, so the only facts available
+> are ones that cost you something. Close the laptop: `verify(uid)` still says who was spared.
+
+**Monad hook** (one line, and it is the mechanism, not a boast): *sub-second blocks — 303 ms measured average
+on mainnet — so a spare becomes a fact in the same breath as the move, not a 12-second ritual elsewhere.*
+
+**Closer, for the stage:** *If my laptop dies, the chain still remembers who was spared.* (Deliberately: the
+`tokenURI` SVG stamp stays undone — AGENT_BLITZ §3 files it P2, and poetry out-votes a render.)
+
+**If it takes a paragraph**, paste this instead — numbers-first, because that is what the submitted Blitz cards do:
+
+
 > **KEEPSAKE** is a 16×16 arena on Monad testnet where the only witness to what you did is the chain itself.
 > Two players, five hit points, six rounds, one contract that is allowed to write. You can **pact** (one-way —
 > I promise not to finish you; you never had to accept), **spare**, or **betray**. Each of those becomes an
@@ -59,10 +74,18 @@ clicking a link on a laptop, not for three judges reading a repo.
 
 ```bash
 forge install foundry-rs/forge-std && forge test -vv                     # 16 tests
-MONAD_RPC=https://testnet-rpc.monad.xyz forge script script/Deploy.s.sol \
-  --rpc-url $MONAD_RPC --broadcast --private-key $PK                     # writes web/addresses.json
+forge script script/Deploy.s.sol:Deploy --rpc-url monad_testnet --broadcast \
+  --private-key $PK --legacy --gas-estimate-multiplier 120 --verify       # writes web/addresses.json
 git add web/addresses.json && git commit -m "deployed: testnet addresses" && git push   # the zero-config handoff
 ```
+
+The flags are not decoration (`AGENT_MONAD.md` §3): `monad_testnet` is chain **10143**, the network the event's
+MON claim funds; `--legacy` because 1559 estimation is flaky there; the multiplier is the *only* padding to allow,
+since Monad charges `gas_limit`; `--verify` posts the source to MonadVision through `[etherscan]` in
+`foundry.toml`. README §Deploy carries the Sourcify command (`--verifier sourcify
+--verifier-url https://sourcify-api-monad.blockvision.org`), which is the one this repo has already checked;
+both routes could not be *run* from this sandbox, so verify once at the venue and keep whichever answers. Keep the commit: `web/addresses.json`
+carries the deploy **block**, which is what widens the UI's log scan past its 900-block default.
 
 Then serve `web/` as the site root. Either:
 - **GitHub Pages** — Settings → Pages → Source: *Deploy from a branch* → branch `main` (or this branch) →
@@ -71,6 +94,11 @@ Then serve `web/` as the site root. Either:
 - or `vercel --prod` in `web/` (no build step: one HTML file, vendored `ethers`, vendored woff2 subsets, one JSON).
 - The UI follows the repo's own design brief, `AGENT_UI.md`: paper chrome, night playfield, square seals,
   radius 0, and a HonorLog that reads as a dated docket instead of a chat log.
+
+Then confirm the two things the platform itself marks as fatal: **Live opens on a phone you are not holding**
+(a voter's own device, no builder present), and **Live is never `http://localhost`** — another Amsterdam card
+in the feed points at `localhost:3000` and is therefore unwinnable. The `Devnads` submit button, not the Luma
+agenda, is the real freeze: submit, *then* line up to talk.
 
 Then confirm the four things a voter will hit: the board paints without a wallet (**read-only mode** via
 `JsonRpcProvider`), `verify()` answers for a UID from the Read tab of the explorer, `Spawned` from another
@@ -105,6 +133,17 @@ Full list in `DEEPDIVE.md` §6; the three most likely here:
 - *"Anyone can call `spawn` and grief your match."* — They can join, they cannot rotate: `startMatch` is
   owner-gated, duplicate live pacts revert, and every verb needs adjacency + hp + ammo, so a griefer pays
   for the privilege of being a fifth dot on a 16×16 board.
+- *"Isn't this Civic Pulse — on-chain incident reporting?"* — Closest thing on the homepage, and the shape is
+  opposite. There is no queue, no admin, no reporter role and nothing to triage: the only way a fact enters the
+  log is that **you** gave up a kill shot or spent a pact, and the contract refuses to let you write one about
+  yourself. Reporting has an authority; this has a counterparty.
+- *"Why no indexer?"* — The Monad docs say to use one rather than hammer `eth_getLogs`, and that is right for
+  production. For a seven-hour build the honest read of the same docs is: subscribe, poll a handful of
+  `viewPlayer` calls every 2 s, and scan a *bounded* log window (900 blocks, widened by the deploy block). An
+  indexer is a second product and a second thing that can be down on stage.
+- *"Why testnet and not mainnet 143?"* — The event funds testnet MON and the platform's own step 1 is a testnet
+  claim; the UI pins 10143 and refuses mainnet with a visible warning rather than silently reading the wrong
+  state. If the organisers announce mainnet is expected, the change is one constant plus a deploy.
 - *"The attestation is free, so what stops spam?"* — Nothing, and that is intended: a *fact* must stay free.
   What stops the lie is that the fact is now constrained by state — you cannot attest a mercy you did not
   have to grant.
@@ -112,7 +151,8 @@ Full list in `DEEPDIVE.md` §6; the three most likely here:
 ## 7 · After the pitches
 
 - List the deployed page in the platform's **Testnet Directory** (beta, 83 apps) — submissions expire, directories don't.
-- `forge verify-contract` both addresses (README §Verify) so a judge can call `verify()` themselves.
+- `forge verify-contract` both addresses (or re-run the deploy command with `--verify`) so a judge can call
+  `verify()` from the explorer's Read tab without trusting us.
 - `.monskills.json` in the repo root records the networks this project touches so an agent picking it up
   starts from the ecosystem skills instead of re-deriving them (`npx skills add therealharpaljadeja/monskills`).
 

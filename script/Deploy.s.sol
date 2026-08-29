@@ -8,6 +8,15 @@ import {World} from "../contracts/World.sol";
 /// Deploys the pair and pins the attester, in the one order that works:
 /// HonorLog -> World(log) -> setWorld(world). Skipping `setWorld` makes every
 /// `attest` revert NotWorld, i.e. a silently dead demo.
+///
+///   forge install foundry-rs/forge-std          # once; the repo ships no lib/
+///   forge script script/Deploy.s.sol:Deploy --rpc-url monad_testnet --broadcast \
+///     --private-key $PK --legacy --gas-estimate-multiplier 120 --verify
+///
+/// `--legacy` because 1559 estimation is flaky on the testnet endpoint; the multiplier is the only
+/// padding to use, since Monad charges gas_limit and a wallet pads on its own. `--verify` resolves
+/// [etherscan] monad_testnet in foundry.toml (MonadVision) — an unverified World reads as amateur on a
+/// peer-voted card. Chain id must be 10143, the network the event's MON claim funds (AGENT_MONAD §0).
 contract Deploy is Script {
     function run() external {
         uint256 deployBlock = block.number; // UI event-scan start; one block early is harmless

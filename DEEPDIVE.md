@@ -479,6 +479,47 @@ Chrome download is blocked, so the visual claims are measurements of the CSS and
 picture of the running page. The check is now repo tooling: **`node script/audit-ui.mjs`** (46 assertions, zero dependencies) — run it after any
 visual change, since the brief's rules are the kind that decay silently. Contracts untouched → `verify-fixes.js` still 27/27.
 
+### Fourth pass — the platform and chain briefs (`AGENT_BLITZ.md`, `AGENT_MONAD.md`)
+
+Two more briefs landed on main mid-session. Both were written against *main*, so several of their "Missing" rows
+were already closed by the earlier passes; the honest score is therefore a mix of "already true", "genuinely
+missing, now fixed", and "the brief is wrong, and here is the measurement".
+
+**Already true when the brief was written** (nothing to do, but worth naming, because these are the rows a
+judge's agent would check first): public testnet RPC for reads via `JsonRpcProvider` (no localhost RPC, no CDN —
+`ethers` and the woff2 subsets are vendored); addresses baked through `web/addresses.json` + `?world=&log=&block=`;
+`wallet_addEthereumChain` with exactly the §8 payload, tried after a `wallet_switchEthereumChain` and explained in
+the log when refused; `honor.on("Attested")` rather than any `newPendingTransactions`/indexer path; subscriptions
+plus a 2 s `viewPlayer` poll instead of a 256-cell sweep; `ethers` v6 kept rather than rewritten to viem+wagmi;
+match identity on `block.number` + `prevrandao`, which the brief explicitly warns must not be "fixed" to
+`block.timestamp` at second granularity.
+
+**Genuinely missing, now fixed:**
+
+| Brief row | What changed |
+|---|---|
+| `AGENT_MONAD` §1 — *charged gas is `gas_limit`* | `GAS_CAP` per verb in `fire()` (`spawn 90k · move 45k · pact 420k · spare 380k · shoot 380k · sealMe 300k`), each the **cold** cost measured in `web/demo-match.json` plus ~20 %. The mined line now prints `290,077 of 380,000 gas`, so refusing the wallet's pad is visible on stage rather than assumed. |
+| §2 — *`eth_getLogs` ranges are capped near 1000 blocks* | The back-fill's `latest - 20000` default became `latest - 900`, started from the deploy block when `addresses.json` supplies one, and wrapped so a refused wide range **retries narrow** and says so. Before this, a spectator tab on a shared address could hang the whole board on one timeout. |
+| §2 — *wait for the receipt before the next verb from the same wallet* | `fire()` takes an `inflight` lock (buttons dim via `body.busy`) and releases it in `finally`. This was a real bug at the first attempt: the lock was taken *outside* the `try`, so a throw wedged it — the DOM harness caught it on the very next run, which is the argument for having a harness at all. |
+| §3 — *`foundry.toml` has holes* | `[rpc_endpoints] monad_testnet/monad_mainnet` and `[etherscan] monad_testnet = { key = "-", chain = 10143, url = "…/api", browser = … }`; the `monad = "${MONAD_RPC}"` alias is kept for continuity. `Deploy.s.sol`'s header now carries `--legacy --gas-estimate-multiplier 120 --verify`, with the reason for each flag. Neither forge command could be **executed** here (no Foundry, and the testnet RPC is unreachable from the sandbox), so `--verifier sourcify` from README §Deploy stays as the route already documented and the `[etherscan]` entry as the MonadVision alternative. |
+| `AGENT_BLITZ` §4 — *README for voters* | A `## Try it in 60 seconds` section in their shape, with the `Live / World / HonorLog / Network / RPC` header block up top and the two address TODOs made impossible to miss. |
+| `AGENT_BLITZ` §2 — *~400-char card copy* | SUBMISSION §2 now leads with the short blurb, the one-line Monad hook and the stage closer, and keeps the long numbers-first paragraph for fields that accept it. Deliberate deviation: the brief's blurb says "pact, spare, or shoot — each mints an attestation"; in this contract a plain kill mints **nothing**, and the sentence that survives scrutiny is the one that says so. |
+
+**Where the brief and the build disagree:** `AGENT_BLITZ` §0 puts the freeze at ~18:00/18:30 from Luma memory
+while the event listing says 17:00/17:30 — the repo keeps the earlier pair *and* adopts the brief's rule that
+the real deadline is the Devnads submit button, not the room's agenda. §1's "one Monad hook — a real number" is
+served by `303 ms` measured on mainnet via the public stats mirror rather than docs' `~10,000 TPS`, which this
+match demonstrably does not exercise; an audit check fails if a borrowed TPS number ever enters the pitch files.
+
+**Both briefs are now executable:** `node script/audit-ui.mjs` (46 checks: tokens, ban-list, WCAG per rule) and
+`node script/audit-platform.mjs` (37 checks: the add-chain payload against §8, caps against the recording, the
+bounded window, the lock's `finally`, foundry endpoints, no localhost anywhere in `web/`, README/SUBMISSION
+placeholders, `.monskills.json` agreeing with `foundry.toml` on chain id). The platform audit was negative-tested
+— inflate a cap to 9,000,000 and remove the `finally`, and it reports exactly those three violations — so its
+green result means something. What neither script can do is the P0 list that requires a human and a network:
+claim the event's MON, deploy, `setWorld` confirmed on the explorer, source-verified, Live opened on someone
+else's phone, and the submission form filled.
+
 ---
 
 ## Appendix A — file-by-file map (post-fix)
