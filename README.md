@@ -2,7 +2,7 @@
 
 A 16×16 on-chain arena. **The World is the only attester.** You cannot certify yourself — you can only be witnessed.
 
-Live: `https://knarayanareddy.github.io/keepsake/` · World: `0xE19D44F5c7351b28e4DAaF0cfCA944FeDC2b6bBB` · HonorLog: `0x24ce27F66C18fF10C5C6B496F64774438cB1F4BC`
+Live: `https://knarayanareddy.github.io/keepsake/web/` · World: `0xE19D44F5c7351b28e4DAaF0cfCA944FeDC2b6bBB` · HonorLog: `0x24ce27F66C18fF10C5C6B496F64774438cB1F4BC`
 Network: **Monad Testnet**, chain id `10143` · RPC: `https://testnet-rpc.monad.xyz` · Explorer: `https://testnet.monadvision.com`
 
 The template slots are filled by the commit `script/Deploy.s.sol` writes: they belong in `web/addresses.json` *and*
