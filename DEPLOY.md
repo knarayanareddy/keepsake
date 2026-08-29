@@ -19,13 +19,26 @@ you make them true on the chain the event funds. Budget ~35 minutes, start with 
 
 1. MetaMask or Rabby. **Create a fresh account** for the event: testnet genesis was reset **2025-12-16**, so any
    balance on an earlier testnet address is gone, and the docs discourage keys that have sent pre-155 transactions.
-2. Get MON, in this order:
-   1. **`blitz.devnads.com` → Amsterdam → the event's MON claim** (approved attendees). Prefer this one — it is the
-      wallet the platform associates with your entry, and it's what the "I funded both demo wallets" answer is.
-   2. `https://faucet.monad.xyz` or `https://testnet.monad.xyz/faucet` — for the second wallet, or as backup.
-3. Fund **two** addresses: the deployer and player B. Reads are free; everything else pays at the testnet's
-   **102 Gwei** base fee (base 100 + 2 tip), verified from a live transaction: a bare 21,165-gas transfer cost
-   **0.00215883 MON** = `gas × 102 Gwei` exactly.
+2. Claim MON **once**, for the deployer: **`blitz.devnads.com` → Amsterdam → the event's MON claim** (approved
+   attendees). It is capped at **one 50-MON claim per whitelisted email** — a second attempt answers *"You have
+   already claimed your 50 MON tokens for this event"* — and it is the wallet the platform associates with your
+   entry, which is what "I funded both demo wallets" means. The public faucets (`https://faucet.monad.xyz`,
+   `https://testnet.monad.xyz/faucet`) are the fallback if the in-app claim is down. Both drip from one
+   distributor, `0xF2bD4Aaa1065d7C44CdFe0537308d41793Abe167` — 2,132 identical 50-MON transfers across 253 days.
+3. **Fund player B by transferring 2 MON from the deployer.** There is no second claim to make, and a faucet rate
+   limit is the last thing you want standing between you and a two-chair demo. 2 MON is 16× what B's whole role
+   in a match costs (≈0.12), the transfer costs 0.0022, and the deployer keeps 48 for the deploys.
+   - Paste the **full 42-character** address (MetaMask → account details → copy). Never retype it, and never
+     trust a `0x1234…abcd` display: eight hex digits is 4 billion collisions across 872k testnet accounts.
+   - **Confirm the network picker reads Testnet / 10143 before you sign.** Mainnet sits in the same dropdown,
+     and mainnet MON is real money.
+   - Leave MetaMask's suggested gas. Blocks are ~300 ms, so it lands in about a second.
+   - Expected: deployer at **1 outgoing**, B at **1 incoming of 2 MON**. Read both on the explorer — it is also
+     a free test that the wallet can sign, estimate, and land a transaction, the three things that otherwise
+     first fail live on stage.
+4. Reads are free; everything else pays at the testnet's
+   **102 Gwei** base fee (base 100 + 2 tip), measured from the transfer above: 21,165 gas cost **0.00215883 MON**
+   = `gas × 102 Gwei` exactly, so no fudge factor is needed to turn our gas table into money.
 
    | what | gas | ≈ MON |
    |---|---|---|
@@ -39,10 +52,10 @@ you make them true on the chain the event funds. Budget ~35 minutes, start with 
    One drip is **50 MON**, so deploy + ten full matches is about 3.7 MON and 46 remains. Fund both and stop
    thinking about balances. A spawn should put `≈0.00583083 MON` in the page's fee line — if it ever reads
    `≈0.00000000`, no receipt was read, which is a bug to report, not cheap gas.
-4. Network, added by hand or by the page: chain id **10143** · RPC `https://testnet-rpc.monad.xyz` ·
+5. Network, added by hand or by the page: chain id **10143** · RPC `https://testnet-rpc.monad.xyz` ·
    symbol **MON** (18 decimals) · explorer `https://testnet.monadvision.com` · `wss://testnet-rpc.monad.xyz` if a
    tool wants WS. Venue wifi congested → `https://rpc-testnet.monadinfra.com` (20 rps, **no batching**).
-5. `export PRIVATE_KEY=0x…` in the terminal only — Foundry picks it up, so no `--private-key` flag is needed.
+6. `export PRIVATE_KEY=0x…` in the terminal only — Foundry picks it up, so no `--private-key` flag is needed.
    Never in a file, never committed, never in a commit message. **The deployer is the owner** of both contracts,
    so keep it reachable all day: its only two levers are `startMatch()` and `HonorLog.renounceOwner()`.
 
