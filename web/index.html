@@ -613,7 +613,13 @@
         $("meAddr").textContent = short(me);
         const a = await resolveAddrs();
         if (a) await wire(a.w, a.l, a.block);
-        else note("paste the World + HonorLog addresses under DEPLOY, then 'Use addresses'");
+        else {
+          // After a successful connect, a panel reading "no wallet" is simply false, and this panel is how a
+          // voter (or I, on stage) knows what mode the page is in. Say what is actually absent: a board.
+          $("vitals").textContent = "no board wired";
+          $("honour").textContent = "read-only";
+          note("wallet ready on Monad testnet · nothing to sign until the World and HonorLog addresses are wired — step 2 of DEPLOY.md");
+        }
       } catch (e) { note("✗ connect: " + why(e), "err"); }
     };
 
