@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KEEPSAKE — what we built, why, and what Monad gives it</title>
+<meta name="description" content="Four slides: what KEEPSAKE is, why it exists, how Monad makes it work, and the hand-off to the live demo. Monad Blitz Amsterdam, 29 Aug 2026." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23E4D9C5'/%3E%3Crect x='5' y='5' width='11' height='11' fill='%238A6A22'/%3E%3Crect x='16' y='16' width='11' height='11' fill='%239B2C2C'/%3E%3C/svg%3E" />
+<style>
+  /* Vendored typefaces, same as the app: a killed CDN must not restyle the pitch. */
+  @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap;
+    src: url("./vendor/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+  @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap;
+    src: url("./vendor/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+  @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap;
+    src: url("./vendor/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+  @font-face { font-family: "Newsreader"; font-style: normal; font-weight: 500; font-display: swap;
+    src: url("./vendor/fonts/newsreader-latin-500-normal.woff2") format("woff2"); unicode-range: U+0000-00FF; }
+
+  :root {
+    --paper: #E4D9C5; --paper-deep: #DCD0B9; --ink: #1C1914; --ink-soft: #5B5349;
+    --rule: #C4B49A; --wax: #9B2C2C; --moss: #3F5C4A; --gilt: #8A6A22; --night: #1A2330;
+    --grid: #2A3345; --stamp: #6E1E1E;
+    --register: "Newsreader", "Source Serif 4", Georgia, "Times New Roman", serif;
+    --instrument: "IBM Plex Sans", "Helvetica Neue", Helvetica, sans-serif;
+    --docket: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  * { box-sizing: border-box; border-radius: 0; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--instrument);
+    font-size: 15px; line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+    overflow: hidden; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  b { font-weight: 600; }
+  em { font-style: normal; border-bottom: 3px solid var(--gilt); }
+  code { font-family: var(--docket); font-size: 15px; }
+
+  /* ── slides ─────────────────────────────────────────────────────── */
+  .deck { height: 100%; position: relative; }
+  .slide { position: absolute; inset: 0; overflow: auto; display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden; transition: opacity 160ms linear, visibility 160ms linear; }
+  .slide.on { opacity: 1; visibility: visible; }
+
+  .pad { max-width: 1220px; margin: 0 auto; width: 100%; padding: 7vh 6vw 12vh; }
+  .slide.night { background: var(--night); color: var(--paper); }
+  .slide.wax { background: var(--wax); color: var(--paper); }
+  .slide.moss { background: var(--moss); color: var(--paper); }
+
+  /* the animated entry: every direct child rises into place. Delays are set in JS so the sheet's
+     timing stays in the 120–180 ms window the identity asks for. */
+  .pad > * { opacity: 0; transform: translateY(14px);
+    transition: opacity 160ms ease-out, transform 160ms ease-out; }
+  .slide.on .pad > * { opacity: 1; transform: none; }
+
+  h1, h2 { font-family: var(--register); font-weight: 500; margin: 0; line-height: 1.04; letter-spacing: -0.015em; }
+  h1 { font-size: 72px; }
+  h2 { font-size: 56px; }
+  .kicker { font-family: var(--docket); font-size: 19px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .lede { font-size: 24px; color: var(--ink-soft); max-width: 66ch; margin: 0; }
+  .night .lede, .wax .lede, .moss .lede { color: var(--paper); opacity: 0.86; }
+  p { max-width: 74ch; margin: 0; font-size: 19px; }
+  .note { font-family: var(--docket); font-size: 12px; color: var(--ink-soft); max-width: 88ch; margin: 0; }
+  .night .note, .wax .note, .moss .note { color: var(--paper); opacity: 0.8; }
+  .big { font-family: var(--register); font-size: 42px; line-height: 1.12; font-weight: 500; max-width: 30ch; }
+
+/* slides 1 and 3 carry the most, so they get a tighter scale — still only 12/15/19/24/42 */
+  .dense h1 { font-size: 42px; } .dense h2 { font-size: 42px; } .dense .lede { font-size: 19px; max-width: 74ch; }
+  .dense .field { min-height: 148px; gap: 6px; padding: 14px 16px 12px; }
+  .dense .field .word { font-size: 24px; } .dense .field p { font-size: 15px; }
+  .dense .rows > div { padding: 10px 0; grid-template-columns: 190px 1fr auto; }
+  .dense .rows .v { font-size: 24px; } .dense .fields { margin-top: 2.5vh; gap: 14px; }
+  .dense .folio { margin-bottom: 2.5vh; } .dense .bar { margin: 12px 0 4px; }
+
+  /* the animated hairline under a heading */
+  .bar { height: 3px; background: var(--gilt); transform: scaleX(0); transform-origin: left center;
+    transition: transform 160ms ease-out; margin: 18px 0 6px; }
+  .slide.on .bar { transform: scaleX(1); }
+  .bar.paper { background: var(--paper); }
+  .bar.waxline { background: var(--wax); }
+
+  .folio { display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+    font-family: var(--docket); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); border-bottom: 1px solid var(--ink); padding-bottom: 10px; margin-bottom: 5vh; }
+  .night .folio, .wax .folio, .moss .folio { color: var(--paper); border-bottom-color: var(--paper); opacity: 0.9; }
+  .folio b { color: var(--ink); font-weight: 600; }
+  .night .folio b, .wax .folio b, .moss .folio b { color: var(--paper); }
+
+  /* ── colour fields: the deck's argument is told in three blocks ──── */
+  .fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 4vh; }
+  .field { border: 1px solid var(--ink); padding: 18px 18px 16px; min-height: 208px; position: relative;
+    display: flex; flex-direction: column; gap: 8px; transform: translateY(0);
+    transition: transform 160ms ease-out, box-shadow 160ms linear; }
+  .field:hover { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--ink); }
+  .field .tag { font-family: var(--docket); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; opacity: .75; }
+  .field .word { font-family: var(--register); font-size: 30px; line-height: 1.1; font-weight: 500; }
+  .field p { font-size: 15px; line-height: 1.45; opacity: .92; }
+  .field.gilt { background: var(--paper-deep); color: var(--ink); border-top: 3px solid var(--gilt); }
+  .field.gilt .word, .field.gilt .tag { color: var(--ink); }
+  .field.gilt .word { font-size: 30px; }
+  .field.moss { background: var(--moss); color: var(--paper); border-color: var(--moss); }
+  .field.wax { background: var(--wax); color: var(--paper); border-color: var(--wax); }
+  .field.none { background: var(--paper-deep); color: var(--ink); }
+  .slide.night .field.gilt, .night .field.none { color: var(--ink); }
+
+  .rows { display: grid; gap: 0; border-top: 1px solid var(--ink); margin-top: 3vh; }
+  .night .rows, .wax .rows, .moss .rows { border-top-color: var(--paper); }
+  .rows > div { display: grid; grid-template-columns: 210px 1fr auto; gap: 22px; align-items: baseline;
+    padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 19px; }
+  .night .rows > div, .wax .rows > div, .moss .rows > div { border-bottom-color: var(--grid); }
+  .rows .k { font-family: var(--docket); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; opacity: .75; }
+  .rows .v { font-family: var(--register); font-size: 30px; font-weight: 500; text-align: right; white-space: nowrap; }
+  .rows .t { max-width: 46ch; }
+
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 4vh; }
+  .steps > div { border-top: 3px solid var(--gilt); padding-top: 12px; }
+  .steps .n { font-family: var(--docket); font-size: 19px; color: var(--wax); }
+  .night .steps .n, .moss .steps .n { color: var(--paper); }
+  .steps h3 { font-family: var(--register); font-size: 24px; font-weight: 500; margin: 4px 0 6px; }
+  .steps p { font-size: 15px; line-height: 1.45; opacity: .9; }
+
+  .go { display: inline-flex; align-items: center; gap: 14px; margin-top: 5vh; padding: 16px 22px;
+    border: 1px solid currentColor; font-family: var(--docket); font-size: 19px; text-decoration: none;
+    transition: background 140ms linear, color 140ms linear; }
+  .go:hover { background: var(--paper); color: var(--ink); }
+  .go .arrow { font-family: var(--register); font-size: 24px; }
+
+  .quote { font-family: var(--register); font-size: 42px; line-height: 1.16; font-weight: 500; max-width: 24ch; }
+  .quote span { color: var(--paper); background: var(--wax); padding: 0 8px; }
+
+  /* ── chrome ─────────────────────────────────────────────────────── */
+  nav.rail { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 14px;
+    padding: 10px 18px; font-family: var(--docket); font-size: 12px; color: var(--ink-soft);
+    background: var(--paper); border-top: 1px solid var(--ink); z-index: 3; }
+  .slide.night ~ nav.rail { color: var(--ink-soft); }
+  nav.rail .marks { display: flex; gap: 6px; flex: 1; }
+  nav.rail button { width: 40px; height: 8px; padding: 0; border: 1px solid var(--ink); background: var(--paper);
+    cursor: pointer; transition: background 140ms linear; }
+  nav.rail button[aria-current="true"] { background: var(--wax); border-color: var(--wax); }
+  nav.rail button:hover { background: var(--paper-deep); }
+  nav.rail .keys { white-space: nowrap; }
+  kbd { font-family: var(--docket); border: 1px solid var(--rule); padding: 1px 5px; font-size: 12px; }
+
+  /* No keyframes anywhere: motion is transitions on state, so a slide that is mid-animation is still readable,
+     and reduced-motion users get the same deck with nothing moving. */
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .pad > * { opacity: 1; transform: none; }
+    .bar { transform: scaleX(1); }
+  }
+  @media (max-width: 980px) {
+    body { overflow: auto; }
+    h1 { font-size: 42px; } h2 { font-size: 30px; } .big, .quote { font-size: 24px; }
+    .fields, .steps { grid-template-columns: 1fr; }
+    .rows > div { grid-template-columns: 1fr; gap: 4px; } .rows .v { text-align: left; }
+    .pad { padding: 4vh 6vw 14vh; }
+  }
+  @media print {
+    body { overflow: visible; }
+    .slide { position: static; opacity: 1; visibility: visible; break-after: page; }
+    .pad > * { opacity: 1; transform: none; } .bar { transform: scaleX(1); }
+    nav.rail { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- ① WHAT WE BUILT ─────────────────────────────────────────────── -->
+  <section class="slide night dense" data-title="What we built">
+    <div class="pad">
+      <div class="folio"><span>KEEPSAKE · <b>slide one</b></span><span>what we built</span></div>
+      <div class="kicker">What we built</div>
+      <h1>A two-person arena where the chain remembers <em>one</em> kind of thing.</h1>
+      <div class="bar paper"></div>
+      <p class="lede">A 16 × 16 grid, two wallets, five verbs, thirty-centisecond blocks. Moves, shots and health
+        are all on-chain — but the only facts that get <em>written down forever</em> are the ones that cost the
+        player something.</p>
+      <div class="fields">
+        <div class="field gilt">
+          <div class="tag">recorded · kind 1</div>
+          <div class="word">A pact</div>
+          <p>You stand beside someone and promise not to shoot them. It is witnessed by the arena, not by a server.</p>
+        </div>
+        <div class="field moss">
+          <div class="tag">recorded · kind 2</div>
+          <div class="word">A spare</div>
+          <p>They are at 2 hit points, armed, in reach — and you let them go. This is the one the whole project exists
+            for.</p>
+        </div>
+        <div class="field wax">
+          <div class="tag">recorded · kind 3</div>
+          <div class="word">A betrayal</div>
+          <p>You break the pact. The record carries the ID of the promise it broke, so the two can never be quoted
+            apart.</p>
+        </div>
+      </div>
+      <p class="lede" style="margin-top: 3vh;"><b>And an ordinary kill? Nothing.</b> Killing is playing, and
+        scoreboards already exist on-chain — if a plain kill wrote a record, you could farm it by spawning and
+        shooting. The log takes only restraint, and its betrayal. That one refusal is what stops anyone manufacturing
+        credit.</p>
+      <p class="note">Two contracts · 11,120 bytes of runtime · 20 transactions recorded per match · no token, no
+        treasury, no admin key (the notary's owner is renounced).</p>
+    </div>
+  </section>
+
+  <!-- ② WHY ───────────────────────────────────────────────────────── -->
+  <section class="slide dense" data-title="Why">
+    <div class="pad">
+      <div class="folio"><span>KEEPSAKE · <b>slide two</b></span><span>why we built it</span></div>
+      <div class="kicker">Why we built it</div>
+      <h2>Interesting behaviour has nowhere to live.</h2>
+      <div class="bar waxline"></div>
+      <div class="rows">
+        <div><span class="k">the gap</span><span class="t">A database can say <code>hp&nbsp;=&nbsp;2</code>. It cannot say
+          <b>why it stayed 2</b>. Every answer to "who was generous under pressure" lives in someone's application
+          tables, and dies when the product does.</span><span class="v">01</span></div>
+        <div><span class="k">the issuer problem</span><span class="t">You can sign a claim about yourself, which makes
+          it worthless. Or you beg an authority to sign for you, which costs a key, a policy and a review queue. Both
+          assume a fact needs an <b>issuer</b>.</span><span class="v">02</span></div>
+        <div><span class="k">the expiry</span><span class="t">Rounds reset, demos go back to <code>localhost</code>.
+          A record you can only read through the service that produced it isn't a record — it's a customer
+          relationship.</span><span class="v">03</span></div>
+      </div>
+      <div class="fields" style="margin-top: 5vh;">
+        <div class="field gilt" style="min-height: 0;">
+          <div class="tag">our answer</div>
+          <div class="word" style="font-size: 30px;">No issuer. A witness.</div>
+          <p>The only thing allowed to mint a fact is the contract that enforces the rules of the moment — so a
+            claim about you cannot be produced by you, and cannot be produced by an admin either.</p>
+        </div>
+        <div class="field none" style="min-height: 0;">
+          <div class="tag">what that removes</div>
+          <div class="word" style="font-size: 30px;">Trust, three ways</div>
+          <p><b>You</b> can't certify yourself. <b>We</b> can't edit your record — there is no revoke, no update,
+            no delete function in the log. <b>The operator</b> can't repoint the attester either: that pin was
+            write-once, it was used once, and the log's owner is renounced — no key on earth can retarget it now.</p>
+        </div>
+        <div class="field wax" style="min-height: 0;">
+          <div class="tag">the test we hold ourselves to</div>
+          <div class="word" style="font-size: 30px;">Impossible, not discouraged</div>
+          <p>If it were merely unfashionable to fake a good deed, we'd have built a leaderboard. The rule lives in a
+            <code>NotKillShot</code> revert and an <code>SSTORE</code> — and it refuses the same way whoever asks.</p>
+        </div>
+      </div>
+      <p class="note">This is not a game about games. It is a working demo of one narrow, useful idea: a public log
+        that only accepts records the author had to <em>risk</em> to create.</p>
+    </div>
+  </section>
+
+  <!-- ③ MONAD ─────────────────────────────────────────────────────── -->
+  <section class="slide moss dense" data-title="Monad">
+    <div class="pad">
+      <div class="folio"><span>KEEPSAKE · <b>slide three</b></span><span>Monad, and the edge</span></div>
+      <div class="kicker">How Monad is used, and what it buys</div>
+      <h2>The pitch dies if the two players wait nine seconds for each other.</h2>
+      <div class="bar paper"></div>
+      <p class="lede">Everything here is a plain EVM call on Monad testnet 10143 — Foundry, ethers, MetaMask, the
+        same addresses in the explorer. What the chain changes is not what is possible, it is what is
+        <em>watchable</em> and what is <em>cheap enough to prove</em>.</p>
+      <div class="rows">
+        <div><span class="k">block time</span><span class="t">≈303 ms, measured on the public stats — so a Spawn lands
+          in the moment you press it, and the other player's board updates on the next poll. We wait ~2 s, not 9.</span>
+          <span class="v">303 ms</span></div>
+        <div><span class="k">fees</span><span class="t">Base fee 102 Gwei. A Spawn costs 57,165 gas metered — six
+          thousandths of a MON. A 21,165-gas transfer cost 0.00215883 MON, which is exactly gas × price: the maths on
+          this slide is arithmetic, not vibes.</span><span class="v">0.0058 MON</span></div>
+        <div><span class="k">storage</span><span class="t">A cold <code>SSTORE</code> is 8,100 gas, so the pact and
+          the spare are the expensive turns (≈0.03–0.04 MON) and a walk is free-feeling. Monad also bills the gas
+          <b>limit</b>, so every verb sends an explicit cap.</span><span class="v">8,100</span></div>
+        <div><span class="k">the game <i>is</i> the oracle</span><span class="t"><code>World</code> calls
+          <code>HonorLog.attest</code> in the same transaction as the move. No relayer, no indexer to trust, no
+          signature collection: the attester is the contract enforcing the rules.</span><span class="v">1 attester</span></div>
+        <div><span class="k">read path</span><span class="t">Log queries cap near 1,000 blocks, so the board rebuilds
+          by scanning <code>Spawned</code> and <code>Attested</code> from the deploy block — and
+          <code>verify(uid)</code> is one <code>eth_call</code> anyone can repeat in the explorer.</span>
+          <span class="v">1 call</span></div>
+      </div>
+      <div class="fields" style="margin-top: 5vh;">
+        <div class="field gilt" style="min-height: 0;">
+          <div class="tag">the edge, plainly</div>
+          <div class="word" style="font-size: 30px;">Fast enough to be a game</div>
+          <p>Two humans in a room, no lag, no "wait for the confirmations". If it were slow we'd have demoed it with
+            screenshots, like every attestation product before us.</p>
+        </div>
+        <div class="field none" style="min-height: 0;">
+          <div class="word" style="font-size: 30px;">Cheap enough to prove</div>
+          <p>"Go verify that yourself" costs a voter nothing — no mint, no gas, no account. Proof has to be free or
+            it's a claim.</p>
+        </div>
+        <div class="field wax" style="min-height: 0;">
+          <div class="word" style="font-size: 30px;">Permanent enough to matter</div>
+          <p>Match-rotation orphans a cell, never a record. The betrayal of a pact outlives the game, the demo, and
+            this weekend.</p>
+        </div>
+      </div>
+      <p class="note">Honest limits, because a judge will check: we are not claiming throughput — nobody demos 10,000
+        TPS with two people. What Monad buys here is 300 ms blocks, sub-cent fees, and EVM equality, and that is
+        enough for what we built.</p>
+    </div>
+  </section>
+
+  <!-- ④ HAND-OFF ──────────────────────────────────────────────────── -->
+  <section class="slide" data-title="Demo">
+    <div class="pad">
+      <div class="folio"><span>KEEPSAKE · <b>slide four</b></span><span>over to the board</span></div>
+      <div class="kicker">Now the part you can check</div>
+      <h1>Watch me get refused.</h1>
+      <div class="bar waxline"></div>
+      <p class="lede">Five moves, both wallets live on Monad testnet. The first one is the interesting one.</p>
+      <div class="steps">
+        <div><div class="n">01</div><h3>Spawn</h3><p>Two chairs, two wallets. Each board learns about the other from
+          an event, not from us.</p></div>
+        <div><div class="n">02</div><h3>Walk &amp; pact</h3><p>One cell per click. Then a promise — gilt line on both
+          boards within two seconds.</p></div>
+        <div><div class="n">03</div><h3>Kill, freely</h3><p>Nothing stands between us. I shoot. <b>Nothing is
+          written.</b> That's the design, not a bug.</p></div>
+        <div><div class="n">04</div><h3>Pact, then betray</h3><p>Same shot, one difference. Kind 3, with the ID of
+          the promise it broke.</p></div>
+        <div><div class="n">05</div><h3>Verify it</h3><p>Paste that ID into the block explorer, not into my page. It
+          reads the same record.</p></div>
+      </div>
+      <div class="quote" style="margin-top: 6vh;">If my laptop dies, the chain still <span>remembers who was
+        spared</span>.</div>
+      <a class="go" href="./index.html">Open the board<span class="arrow">→</span></a>
+      <p class="note">Board <code>…/keepsake/web/</code> · the manual (every verb, every refusal, what to do when a
+        read fails) <code>…/keepsake/web/manual.html</code> · contracts and tests at
+        <code>github.com/knarayanareddy/keepsake</code></p>
+    </div>
+  </section>
+
+</div>
+
+<nav class="rail" aria-label="deck progress">
+  <span id="counter">01 / 04</span>
+  <div class="marks" id="marks"></div>
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> turn · <kbd>F</kbd> wall · <kbd>P</kbd> print</span>
+</nav>
+
+<script>
+  const slides = [...document.querySelectorAll(".slide")];
+  const marks = document.getElementById("marks");
+  let i = 0;
+
+  slides.forEach((s, n) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.title = (n + 1) + " · " + s.dataset.title;
+    b.setAttribute("aria-label", b.title);
+    b.addEventListener("click", () => go(n));
+    marks.appendChild(b);
+  });
+
+  function stagger(slide) {
+    // one entrance per visit: children settle in sequence, ~55 ms apart, inside a 160 ms transition
+    [...slide.querySelector(".pad").children].forEach((el, n) => {
+      el.style.transitionDelay = n * 55 + "ms";
+    });
+  }
+
+  function go(n, push = true) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => {
+      const on = k === i;
+      if (!on) [...s.querySelector(".pad").children].forEach((el) => { el.style.transitionDelay = "0ms"; });
+      s.classList.toggle("on", on);
+      if (on) { stagger(s); }
+    });
+    [...marks.children].forEach((b, k) => b.setAttribute("aria-current", k === i ? "true" : "false"));
+    document.getElementById("counter").textContent =
+      String(i + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    document.title = (i + 1) + "·" + slides[i].dataset.title + " — KEEPSAKE";
+    if (push) location.hash = "#" + (i + 1);
+    slides[i].scrollTop = 0;
+  }
+
+  addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " " || e.key === "Enter") { e.preventDefault(); go(i + 1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp" || e.key === "Backspace") { e.preventDefault(); go(i - 1); }
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(slides.length - 1);
+    else if (e.key.toLowerCase() === "f") {
+      document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+    } else if (e.key.toLowerCase() === "p") { print(); }
+  });
+
+  // click right to turn forward, left to go back; controls and links keep their own behaviour
+  document.getElementById("deck").addEventListener("click", (e) => {
+    if (e.target.closest("a,button,pre,code,input,.field")) return;
+    go(e.clientX > innerWidth * 0.3 ? i + 1 : i - 1);
+  });
+
+  addEventListener("hashchange", () => {
+    const n = parseInt(location.hash.slice(1), 10);
+    if (Number.isFinite(n) && n - 1 !== i) go(n - 1, false);
+  });
+
+  let x0 = null;
+  addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener("touchend", (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 48) go(i + (dx < 0 ? 1 : -1));
+    x0 = null;
+  }, { passive: true });
+
+  go(Number.isFinite(parseInt(location.hash.slice(1), 10)) ? parseInt(location.hash.slice(1), 10) - 1 : 0, false);
+</script>
+</body>
+</html>
