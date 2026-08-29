@@ -64,13 +64,16 @@ you make them true on the chain the event funds. Budget ~35 minutes, start with 
 ```bash
 curl -L https://foundry.paradigm.xyz | bash && foundryup      # need v1.8+
 git clone https://github.com/knarayanareddy/keepsake && cd keepsake
-git checkout arena/01a04cd6-keepsake                            # the branch with the fixes and the deploy config
 forge install foundry-rs/forge-std                              # the repo ships no lib/
 forge build && forge test -vv                                   # 16 tests, runs offline
 
 forge script script/Deploy.s.sol:Deploy --rpc-url monad_testnet \
   --broadcast --legacy --gas-estimate-multiplier 120
 ```
+
+Everything in this section is on `main` once the Blitz branch is merged; if you cloned while it was still open,
+`git checkout arena/01a04cd6-keepsake` gets the identical tree, and `forge build && forge test -vv` must print
+16 passing tests either way — that is the cheap proof you have the right tree before any MON is at stake.
 
 Three transactions, in the order that is the only one that works: `new HonorLog()` → `new World(log)` →
 `log.setWorld(world)`. If you ever deploy by hand instead, **skipping `setWorld` is the one silent failure**: every
@@ -121,8 +124,13 @@ git add web/addresses.json README.md && git commit -m "deployed: Monad testnet a
 Then fill README's three header TODOs (`Live`, `World`, `HonorLog`) — `node script/audit-platform.mjs` fails if
 `addresses.json` and the README stop agreeing, which is the failure mode of a card that links to a dead board.
 
-GitHub Pages: Settings → Pages → *Deploy from a branch* → `main` (or the branch you deploy) → folder `/web` →
-Save. Two clicks; the API route returns `403` for a contents-scoped token, which is exactly what happened here.
+GitHub Pages is **not enabled at all** — the API answers `404 Not Found`, which is the one `AGENT_BLITZ` P0 the
+code cannot close for you. Publish off `main` after the merge: Settings → Pages → *Deploy from a branch* →
+`main` → folder **`/web`** → Save, then wait ~40 s for the first build. The click has to be a human's: the API
+route returns `403` for a contents-scoped token, which is what happened when I tried it from the agent sandbox.
+
+Publishing off the branch is also possible but a trap: `main`'s `web/index.html` is **10,388 bytes** and predates
+the whole restyle, so a Pages source of `main` before the merge serves a Live URL that is not this project.
 Then open `https://<user>.github.io/keepsake/` on **a phone you are not holding**: it should boot in **read-only**
 mode, paint the board, and print a `scanned Spawned, …` line. That is the state a voter sees, so it must not be
 the preview recording — if it still says `Preview ·`, the address file isn't being served.
