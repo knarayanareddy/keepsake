@@ -48,6 +48,20 @@ forge verify-contract $HONORLOG contracts/HonorLog.sol:HonorLog \
   --chain 10143 --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org
 ```
 
+## Demo modes (no wallet required to look)
+
+`web/index.html` picks its source in this order and prints which one it is using, in the header:
+
+| Mode | Trigger | What it means |
+|---|---|---|
+| **live** | wallet connected + addresses resolved | reads over the testnet RPC, writes signed by you |
+| **spectate** | addresses resolved, no wallet | read-only board: same events, same `verify()`, nothing to sign |
+| **preview** | nothing configured | plays `web/demo-match.json` — a match recorded from *this* source in a local EVM, labelled "nothing signed, nothing spent" |
+
+`script/Deploy.s.sol` writes `web/addresses.json`, so a deployed repo is a shareable link with no paste step.
+Regenerate the recording after any rule change with `node script/record-demo.js` (deps in that file's header),
+because the card copy in `SUBMISSION.md` and `web/hero.png` quote its numbers.
+
 ## Play it
 
 ```bash
@@ -65,6 +79,11 @@ first shot after a pact is the betrayal. Click any UID in the log to run it thro
 
 `forge test` runs `test/Keepsake.t.sol`: the demo path, the `refUID` chain, and one regression per
 guard above.
+
+## Submission
+
+`SUBMISSION.md` holds the paste-ready hackathon card (copy, measured numbers, links) and the checklist that
+makes the Live URL real. The 1200×630 image is generated, not designed by hand: `./script/make-hero.sh`.
 
 ## Pitch line
 

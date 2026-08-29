@@ -8,6 +8,10 @@
   <meta property="og:title" content="KEEPSAKE" />
   <meta property="og:description" content="You cannot certify yourself. You can only be witnessed." />
   <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://knarayanareddy.github.io/keepsake/hero.png" />
+  <meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2307080c'/%3E%3Ccircle cx='5' cy='8' r='2.4' fill='%23d4b56a'/%3E%3Ccircle cx='11' cy='8' r='2.4' fill='%23c45c4a'/%3E%3C/svg%3E" />
   <style>
     :root {
       --bg: #07080c;
@@ -114,6 +118,14 @@
       <div class="stat"><span>kept / spared / broke</span><span id="honour">—</span></div>
       <div class="stat"><span>match</span><span id="matchTag">—</span></div>
       <div class="stat"><span>on board</span><span id="roster">—</span></div>
+      <div class="stat"><span>txs / gas / est. fee</span><span id="bill">—</span></div>
+      <h2 id="replayHead" style="display:none">REPLAY <span class="tag" id="replayTag"></span></h2>
+      <div id="replayBox" style="display:none">
+        <div class="log" id="replayText" style="max-height:120px;margin-bottom:0.4rem"></div>
+        <button class="mini" id="rPrev">⏮</button><button class="mini" id="rPlay">▶ play</button><button class="mini" id="rNext">⏭</button>
+        <button class="mini" id="rLive" style="display:none">view live board</button>
+        <div class="stat" style="margin-top:0.4rem"><span id="rIdx">—</span><span id="rMeta" class="tag"></span></div>
+      </div>
       <h2>TARGET</h2>
       <div class="stat"><span id="tgt">none</span><span id="tgtState">—</span></div>
       <button class="mini" id="clearTarget" style="display:none">clear target</button>
@@ -146,6 +158,8 @@
     try { ethers = await import("./vendor/ethers.min.js"); }
     catch { ethers = await import("https://esm.sh/ethers@6.13.4"); }
     const { BrowserProvider, Contract } = ethers;
+    const JsonRpcProvider = ethers.JsonRpcProvider;      // undefined-tolerant: older/minimal builds
+    const MONAD_RPC = "https://testnet-rpc.monad.xyz";
 
     // The ABIs carry `error` fragments on purpose: with them ethers v6 decodes
     // `e.revert.name`, so a revert tells the player what they did instead of
@@ -227,8 +241,14 @@
     const cheb = (p, q) => Math.max(Math.abs(Number(p.x) - Number(q.x)), Math.abs(Number(p.y) - Number(q.y)));
 
     let provider, signer, me, world, honor, target, currentMatch, wired = false, pollTimer = null;
+    let roW = null, roL = null;                       // read-only contracts (RPC, no wallet)
+    let mode = "off";                                 // off | preview | spectate | live
+    let demo = null, demoIdx = 0, demoTimer = null, demoActor = null;
+    const bill = { txs: 0, gas: 0, wei: 0n };         // what the chain actually charged this tab
     const seen = new Map();        // lowercase address -> player snapshot
     const lastUid = new Map();     // lowercase address -> { kind, uid }  (for ring highlights)
+    const rw = () => world || roW;                    // reads never depend on the wallet's RPC
+    const rl = () => honor || roL;
 
     // ── log: every line is a record, every UID is clickable ──
     function line(html, cls = "") {
@@ -267,6 +287,11 @@
         note(label + " " + tx.hash.slice(0, 12) + " …");
         const r = await tx.wait();
         note(label + " mined in " + r.blockNumber, "live");
+        try {
+          const gas = BigInt(r.gasUsed ?? 0n), price = BigInt(r.gasPrice ?? r.effectiveGasPrice ?? 0n);
+          bill.txs++; bill.gas += Number(gas); bill.wei += gas * price;
+          $("bill").textContent = `${bill.txs} tx · ${bill.gas.toLocaleString()} gas · ≈${(Number(bill.wei) / 1e18).toFixed(8)} MON`;
+        } catch { /* receipt shape differs; the tx still landed */ }
         await refreshKnown();
         return r;
       } catch (e) {
@@ -289,7 +314,7 @@
         if (!p.joined) continue;
         onBoard++;
         const c = cellAt(p.x, p.y);
-        const mine = me && addr === norm(me);
+        const mine = (me && addr === norm(me)) || (mode === "preview" && addr === demoActor);
         const dot = document.createElement("div");
         dot.className = "dot" + (mine ? "" : " other") + (p.alive ? "" : " dead");
         c.appendChild(dot);
@@ -307,8 +332,10 @@
     }
 
     async function refreshKnown() {
-      if (!world || !me) return;
-      try { currentMatch = await world.currentMatch(); } catch { return; }
+      const w = rw();
+      if (!w) return;
+      if (mode === "preview") return;                 // the replay owns the board in preview mode
+      try { currentMatch = await w.currentMatch(); } catch { return; }
       const addrs = new Set([norm(me), ...seen.keys()]);
       if (isAddr(target)) addrs.add(norm(target));
       for (const a of addrs) {
@@ -318,23 +345,24 @@
           seen.set(a, p);
         } catch { /* stale key: keep placeholder, ignore */ }
       }
-      const p = seen.get(norm(me));
+      const p = me ? seen.get(norm(me)) : null;
       if (p && p.joined) {
         $("vitals").textContent = `${p.hp} hp / ${p.ammo} ammo` + (p.alive ? "" : "  DEAD");
         $("honour").textContent = `${p.pactKept} / ${p.spared} / ${p.pactBroken}`;
         $("matchTag").textContent = norm(p.matchId) === norm(currentMatch) ? "in current match" : "orphaned — Spawn";
       } else if (me) { $("vitals").textContent = "not spawned"; $("honour").textContent = "—"; }
+      else { $("vitals").textContent = "no wallet"; $("honour").textContent = "read-only"; }
 
       // target state: adjacency, liveness, live pact
       const tp = isAddr(target) ? seen.get(norm(target)) : null;
       const inThisMatch = !!tp && tp.joined && tp.alive && norm(tp.matchId) === norm(currentMatch);
       const adjacent = !!p && !!tp && cheb(p, tp) === 1;
-      if (isAddr(target)) {
+      if (isAddr(target) && me) {
         $("tgt").textContent = short(norm(target));
         let state = inThisMatch ? (adjacent ? "adjacent" : "not adjacent") : "gone from this match";
         if (inThisMatch && adjacent) {
           try {
-            const uid = await world.livePact(me, target);
+            const uid = await w.livePact(me, target);
             if (uid && uid !== "0x" + "0".repeat(64)) { state += " · pact live"; lastUid.set(norm(me), { kind: 1, uid }); }
             else lastUid.delete(norm(me));
           } catch { /* older World build */ }
@@ -343,15 +371,22 @@
         $("tgtState").textContent = state;
         $("clearTarget").style.display = "";
       } else { $("tgt").textContent = "none"; $("tgtState").textContent = "—"; $("clearTarget").style.display = "none"; lastUid.delete(norm(me)); }
-      $("pact").disabled  = !(inThisMatch && adjacent);
-      $("spare").disabled = !(inThisMatch && adjacent && p && p.ammo > 0 && tp && Number(tp.hp) <= (window.__spareWindow ?? 2) && Number(tp.ammo) > 0);
-      $("shoot").disabled = !(inThisMatch && adjacent && p && p.ammo > 0);
-      $("seal").disabled  = !(p && p.joined);
+      const canAct = !!me && !!world && mode !== "preview";
+      $("pact").disabled  = !(canAct && inThisMatch && adjacent);
+      $("spawn").disabled = !canAct;
+      $("spare").disabled = !(canAct && inThisMatch && adjacent && p && p.ammo > 0 && tp && Number(tp.hp) <= (window.__spareWindow ?? 2) && Number(tp.ammo) > 0);
+      $("shoot").disabled = !(canAct && inThisMatch && adjacent && p && p.ammo > 0);
+      $("seal").disabled  = !(canAct && p && p.joined);
+      $("verify").disabled = !rl();
+      const why_disabled = mode === "preview" ? "this is the recorded preview — deploy or wire a World to act"
+        : mode === "spectate" ? "read-only board: connect a wallet to act" : "no contract wired";
+      for (const id of ["spawn", "pact", "spare", "shoot", "seal"]) $(id).title = $(id).disabled ? why_disabled : "";
       paint();
     }
 
     cells.forEach((c) => {
       c.onclick = async () => {
+        if (mode === "preview") return note("this is the recorded preview — ⏭ through it, or wire a live World below to move pieces", "err");
         if (!world || !me) return note("connect a wallet and wire the contracts first", "err");
         const x = +c.dataset.x, y = +c.dataset.y;
         const meP = seen.get(norm(me));
@@ -407,16 +442,8 @@
         signer = await provider.getSigner();
         me = await signer.getAddress();
         $("meAddr").textContent = short(me);
-        let w = $("worldIn").value.trim() || localStorage.getItem("ks_world") || "";
-        let l = $("logIn").value.trim() || localStorage.getItem("ks_log") || "";
-        if (!isAddr(w) || !isAddr(l)) {
-          // the deploy script can drop web/addresses.json — then there is no paste step at all
-          try {
-            const j = await (await fetch("./addresses.json")).json();
-            if (isAddr(j.world) && isAddr(j.log)) { w = j.world; l = j.log; if (j.block) $("blockIn").value = j.block; }
-          } catch { /* no addresses.json: manual paste path below */ }
-        }
-        if (isAddr(w) && isAddr(l)) { $("worldIn").value = w; $("logIn").value = l; await wire(w, l); }
+        const a = await resolveAddrs();
+        if (a) await wire(a.w, a.l, a.block);
         else note("paste the World + HonorLog addresses under DEPLOY, then 'Use addresses'");
       } catch (e) { note("✗ connect: " + why(e), "err"); }
     };
@@ -427,44 +454,76 @@
       localStorage.setItem("ks_world", w); localStorage.setItem("ks_log", l);
       const blk = Number.parseInt($("blockIn").value.trim(), 10);
       if (Number.isFinite(blk) && blk >= 0) localStorage.setItem("ks_block", String(blk));
-      wire(w, l);
+      localStorage.setItem("ks_watch", norm($("watchIn").value.trim()));
+      wire(w, l, $("blockIn").value.trim());
     };
 
-    async function wire(w, l) {
-      if (!signer) return note("connect the wallet first", "err");
-      if (wired) { try { world?.removeAllListeners(); honor?.removeAllListeners(); } catch {} }
-      world = new Contract(w, WORLD_ABI, signer);
-      honor = new Contract(l, LOG_ABI, signer);
-      try { world.removeAllListeners(); honor.removeAllListeners(); } catch {}
+    // ── the read path: an RPC provider, no wallet, no signature. This is what makes
+    //    the link shareable with someone who has never seen Monad. ──
+    let wiredPair = null;
+    async function wireRead(w, l, fromBlock) {
+      if (wiredPair && wiredPair.w === norm(w) && wiredPair.l === norm(l) && (mode === "spectate" || mode === "live")) return true;
+      if (typeof JsonRpcProvider !== "function") { note("this ethers build has no JsonRpcProvider — connect a wallet to read", "err"); return false; }
+      if (roW) { try { roW.removeAllListeners(); roL.removeAllListeners(); } catch {} }
+      const rp = new JsonRpcProvider(MONAD_RPC);
+      try { rp.pollingInterval = 1500; } catch {}
+      roW = new Contract(w, WORLD_ABI, rp);
+      roL = new Contract(l, LOG_ABI, rp);
+      try { await roW.currentMatch(); }
+      catch (e) {
+        note("✗ cannot read that World over " + MONAD_RPC + ": " + why(e) + " — is this the testnet it was deployed to?", "err");
+        roW = roL = null; return false;
+      }
+      wiredPair = { w: norm(w), l: norm(l) };
+      stopDemo();
+      mode = "spectate";
+      $("replayHead").style.display = "none"; $("replayBox").style.display = "none";
+      $("netTag").textContent = "MONAD TESTNET 10143 · READ-ONLY BOARD · CONNECT TO ACT";
+      $("netTag").className = "tag live";
+      $("hint").textContent = "Watching the chain. Nothing on this page can change state until you Connect a wallet and Spawn.";
+      $("verify").disabled = false;
 
       // Subscriptions: the board learns who exists from the chain, not from luck.
-      honor.on("Attested", (uid, schema, subject, attester, other, matchId, kind) => {
+      roL.on("Attested", (uid, schema, subject, attester, other, matchId, kind) => {
         lastUid.set(norm(subject), { kind: Number(kind), uid });
         rec(Number(kind), uid, subject, other);
         watch(subject); watch(other);
       });
-      world.on("Spawned", (matchId, player) => { note("Spawned " + short(norm(player))); watch(player); });
-      world.on("Moved", (player) => watch(player));
-      world.on("Shot", (shooter, victim, hpLeft, killed) => {
+      roW.on("Spawned", (matchId, player) => { note("Spawned " + short(norm(player))); watch(player); });
+      roW.on("Moved", (player) => watch(player));
+      roW.on("Shot", (shooter, victim, hpLeft, killed) => {
         note(`${killed ? "☠ " : "• "}${short(norm(shooter))} shot ${short(norm(victim))} → ${hpLeft} hp`);
         watch(shooter); watch(victim);
       });
 
-      // Back-fill: anyone who acted before this tab connected must still show up.
+      // Back-fill: Monad defers logs behind execution and a fresh tab has no history,
+      // so a scan is mandatory — subscriptions alone show you only what happens next.
       try {
-        const latest = await provider.getBlockNumber();
-        const from = Number(localStorage.getItem("ks_block") ?? 0);
-        const span = Math.max(0, Math.min(from > 0 ? from : Math.max(0, latest - 30000), latest));
-        const evs = await world.queryFilter(world.filters.Spawned(), span, "latest");
+        const latest = await rp.getBlockNumber();
+        const from = Number(fromBlock ?? localStorage.getItem("ks_block") ?? 0);
+        const span = Math.max(0, Math.min(from > 0 ? from : Math.max(0, latest - 20000), latest));
+        const evs = await roW.queryFilter(roW.filters.Spawned(), span, "latest");
         evs.forEach((e) => watch(e.args.player));
-        note(`scanned Spawned from block ${span} (${evs.length} hits) — latest ${latest}`, "live");
+        note(`scanned Spawned from block ${span} (${evs.length} hit${evs.length === 1 ? "" : "s"}) — latest ${latest}`, "live");
       } catch (e) { note("event backfill skipped: " + why(e), "err"); }
 
-      try { window.__spareWindow = Number(await world.SPARE_WINDOW()); } catch {}
-      $("spawn").disabled = false; $("verify").disabled = false;
+      try { window.__spareWindow = Number(await roW.SPARE_WINDOW()); } catch {}
       wired = true;
       await refreshKnown();
-      if (pollTimer === null) pollTimer = setInterval(() => { if (wired) refreshKnown(); }, 2000);
+      if (pollTimer === null) pollTimer = setInterval(() => { if (mode === "spectate" || mode === "live") refreshKnown(); }, 2000);
+      return true;
+    }
+
+    // ── the write path: your wallet, for sending only ──
+    async function wire(w, l, fromBlock) {
+      if (!signer) return note("connect the wallet first", "err");
+      world = new Contract(w, WORLD_ABI, signer);
+      honor = new Contract(l, LOG_ABI, signer);
+      const okRead = await wireRead(w, l, fromBlock);
+      if (!okRead) { world = null; honor = null; return; }
+      mode = "live";
+      $("netTag").textContent = "MONAD TESTNET 10143 · YOUR WALLET SIGNS · THE WORLD ATTESTS";
+      await refreshKnown();
     }
 
     $("spawn").onclick = () => fire("spawn", "spawn");
@@ -476,13 +535,19 @@
     $("watchBtn").onclick = async () => { const a = $("watchIn").value.trim(); if (!isAddr(a)) return note("not an address", "err"); await watch(a); note("pinned " + short(a)); };
 
     $("mine").onclick = async () => {
-      if (!honor || !me) return note("connect first", "err");
+      const lg = rl();
+      if (!lg) return note("no HonorLog wired", "err");
+      if (!me) {
+        // read-only: show the two addresses the replay/scan knows about instead of "my" records
+        note(`read-only — no wallet. ${seen.size} address${seen.size === 1 ? "" : "es"} on this board; paste an address under WATCH to pull its records`);
+        return;
+      }
       try {
-        const n = Number(await honor.countOf(me));
+        const n = Number(await lg.countOf(me));
         note(`${n} record${n === 1 ? "" : "s"} about ${short(me)} — click one to verify it`);
         for (let i = 0; i < n; i++) {
-          const uid = await honor.uidAt(me, i);
-          const a = await honor.get(uid);
+          const uid = await lg.uidAt(me, i);
+          const a = await lg.get(uid);
           rec(Number(a.kind), uid, a.subject, a.other, "score/hp " + a.extra);
         }
       } catch (e) { note("✗ " + why(e), "err"); }
@@ -491,9 +556,11 @@
     $("verify").onclick = async () => {
       const uid = $("uidIn").value.trim();
       if (!isUid(uid)) { $("verifyOut").innerHTML = '<span class="err">not a bytes32 — paste a full 0x…64-hex UID</span>'; return; }
+      const lg = rl();
+      if (!lg) { $("verifyOut").innerHTML = '<span class="err">no HonorLog wired — see DEPLOY below</span>'; return; }
       try {
-        const r = await honor.verify(uid);
-        const w = await honor.world();
+        const r = await lg.verify(uid);
+        const w = await lg.world();
         const rows = {
           ok: r[0],
           kind: KIND[Number(r[5])] || String(r[5]),
@@ -507,19 +574,108 @@
         $("verifyOut").innerHTML =
           Object.entries(rows).map(([k, v]) => `${k}: <span class="${/false/.test(String(v)) ? "err" : ""}">${v}</span>`).join("<br>") +
           (rows.ok ? "" : '<br><span class="err">no such attestation (verify returns false rather than reverting)</span>');
-      } catch (e) { $("verifyOut").innerHTML = '<span class="err">✗ ' + why(e) + "</span>"; }
+      } catch (e) { $("verifyOut").innerHTML = '<span class="err">✗ ' + why(e) + (mode === "preview" ? " · this UID is from the local recording, so there is nothing to verify against" : "") + "</span>"; }
     };
 
-    // addresses may arrive from the Deploy script's URL instead of a paste
-    const q = new URLSearchParams(location.search);
-    if (isAddr(q.get("world"))) $("worldIn").value = q.get("world").trim();
-    if (isAddr(q.get("log"))) $("logIn").value = q.get("log").trim();
-    if (q.get("block")) $("blockIn").value = q.get("block").trim();
-    if (isAddr(q.get("watch"))) { $("watchIn").value = q.get("watch").trim(); }
-    for (const [k, v] of [["ks_world", "worldIn"], ["ks_log", "logIn"], ["ks_block", "blockIn"]]) {
-      const saved = localStorage.getItem(k);
-      if (saved && !$(v).value) $(v).value = saved;
+    // ── address resolution: query string > addresses.json > localStorage > inputs ──
+    async function resolveAddrs() {
+      const q = new URLSearchParams(location.search);
+      let w = q.get("world") || "", l = q.get("log") || "", blk = q.get("block") || "";
+      if (!isAddr(w) || !isAddr(l)) {
+        try {
+          const j = await (await fetch("./addresses.json")).json();
+          if (!isAddr(w) && isAddr(j.world)) w = j.world;
+          if (!isAddr(l) && isAddr(j.log)) l = j.log;
+          if (!blk && j.block) blk = String(j.block);
+        } catch { /* no addresses.json yet — that is the pre-deploy state, and the preview covers it */ }
+      }
+      if (!isAddr(w)) w = localStorage.getItem("ks_world") || "";
+      if (!isAddr(l)) l = localStorage.getItem("ks_log") || "";
+      if (!blk) blk = localStorage.getItem("ks_block") || "";
+      if (isAddr(w)) $("worldIn").value = w.trim();
+      if (isAddr(l)) $("logIn").value = l.trim();
+      if (blk) $("blockIn").value = String(blk).trim();
+      if (isAddr(q.get("watch"))) $("watchIn").value = q.get("watch").trim();
+      else { const pw = localStorage.getItem("ks_watch"); if (pw && !$("watchIn").value) $("watchIn").value = pw; }
+      return isAddr(w) && isAddr(l) ? { w: w.trim(), l: l.trim(), block: blk } : null;
     }
+
+    // ── PREVIEW: a recorded match, so the page is never a dead grid ──
+    const PREVIEW_MATCH = "0x" + "00".repeat(31) + "fe";
+    function stopDemo() { if (demoTimer) { clearInterval(demoTimer); demoTimer = null; $("rPlay").textContent = "▶ play"; } }
+    async function startDemo() {
+      try { demo = await (await fetch("./demo-match.json")).json(); }
+      catch {
+        $("hint").textContent = "No World contract is wired and demo-match.json is missing — deploy, or paste the two addresses under DEPLOY.";
+        return false;
+      }
+      mode = "preview"; wiredPair = null;
+      $("replayHead").style.display = ""; $("replayBox").style.display = "";
+      $("replayTag").textContent = "recorded off " + demo.meta.settings.split("·")[0].trim() + " · not a broadcast";
+      $("netTag").textContent = "PREVIEW · " + demo.frames.length + " RECORDED TXS · NOTHING SIGNED, NOTHING SPENT";
+      $("netTag").className = "tag warn";
+      $("hint").textContent = "This board is playing a match recorded from this exact source in a local EVM. "
+        + "▶ play to step through it, or deploy (script/Deploy.s.sol writes web/addresses.json) and this becomes the live chain. "
+        + "The UIDs below are trace-local, so verify() has nothing to answer yet — that is on purpose.";
+      $("rMeta").textContent = demo.meta.runtime_bytes.World + " + " + demo.meta.runtime_bytes.HonorLog + " B runtime · " + demo.meta.total_execution_gas.toLocaleString() + " gas";
+      $("vitals").textContent = "no wallet"; $("honour").textContent = "read-only"; $("bill").textContent = "0 tx · nothing signed";
+      for (const id of ["spawn", "pact", "spare", "shoot", "seal", "verify"]) { const b = $(id); if (b) { b.disabled = true; b.title = "recorded preview — wire a live World to act"; } }
+      $("verify").disabled = false;    // still let a curious voter press it and read why it cannot answer
+      const pw = localStorage.getItem("ks_watch");
+      if (!pw) { for (const pl of demo.players) { seen.set(pl.addr, { joined: false, alive: false, x: 0, y: 0, hp: 0, ammo: 0, matchId: null }); } }
+      demoIdx = 0; showDemo(0);
+      return true;
+    }
+    function showDemo(i) {
+      if (!demo || !demo.frames.length) return;
+      i = Math.max(0, Math.min(demo.frames.length - 1, i));
+      demoIdx = i;
+      const f = demo.frames[i];
+      currentMatch = PREVIEW_MATCH;
+      demoActor = f.actorAddr;
+      seen.clear();
+      for (const [addr, p] of Object.entries(f.state)) seen.set(addr, { ...p, joined: true, matchId: PREVIEW_MATCH });
+      for (const k of Array.from(lastUid.keys())) lastUid.delete(k);
+      const box = $("log"); while (box.firstChild) box.removeChild(box.firstChild);
+      for (let j = 0; j <= i; j++) {
+        const g = demo.frames[j];
+        if (g.fact) { lastUid.set(g.actorAddr, { kind: g.fact.kind, uid: g.fact.uid }); rec(g.fact.kind, g.fact.uid, g.actorAddr, g.fact.other, "b" + g.block); }
+      }
+      const a = seen.get(f.actorAddr);
+      $("tgt").textContent = f.actor; $("tgtState").textContent = a ? `(${a.x},${a.y}) · ${a.hp} hp · ${a.ammo} ammo` : "—";
+      $("roster").textContent = seen.size + " recorded players";
+      $("matchTag").textContent = "match " + (demo.meta.generated || "").slice(0, 10);
+      $("replayText").innerHTML = `<b>${f.actor} · ${f.verb}</b> <span class="tag">block ${f.block}${f.gas ? " · " + f.gas.toLocaleString() + " gas" : ""}</span><br>`
+        + f.text.replace(/</g, "&lt;")
+        + (f.fact ? `<br>${f.fact.kindName} <span data-uid="${f.fact.uid}">${f.fact.uid.slice(0, 22)}…${f.fact.uid.slice(-6)}</span>${f.fact.refUID !== "0x" + "0".repeat(64) ? " · refUID " + f.fact.refUID.slice(0, 14) + "…" : ""}` : "");
+      $("rIdx").textContent = `frame ${i + 1} of ${demo.frames.length}`;
+      paint();
+    }
+    $("rNext").onclick = () => { stopDemo(); showDemo(demoIdx + 1); };
+    $("rPrev").onclick = () => { stopDemo(); showDemo(demoIdx - 1); };
+    $("rPlay").onclick = () => {
+      if (!demo) return;
+      if (demoTimer) { stopDemo(); return; }
+      if (demoIdx >= demo.frames.length - 1) showDemo(0);
+      else showDemo(demoIdx + 1);
+      $("rPlay").textContent = "⏸ pause";
+      demoTimer = setInterval(() => {
+        if (demoIdx >= demo.frames.length - 1) {
+          stopDemo();
+          note("replay over. on a live board these four UIDs are what remains when the match is deleted — that is the whole product", "live");
+          return;
+        }
+        showDemo(demoIdx + 1);
+      }, 1500);
+    };
+
+    (async function boot() {
+      const a = await resolveAddrs();
+      if (a) { if (await wireRead(a.w, a.l, a.block)) return; }
+      const previewed = await startDemo();
+      if (!previewed) note("no chain, no recording — paste the World + HonorLog addresses under DEPLOY, then 'Use addresses'");
+      else note("preview loaded. press ▶ play, or wire a live World below.");
+    })();
   </script>
 </body>
 </html>

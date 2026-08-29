@@ -1,8 +1,9 @@
 # KEEPSAKE — deep dive (repo × HANDOVER.md cross-check)
 
-> **STATUS: the punch list below has been applied.** Contracts, UI, tests, deploy script and both
-> handover docs were edited on 2026-08-29; §10 is the changelog and the re-verification result
-> (27/27 runtime probes green, 0 compile diagnostics, `test/Keepsake.t.sol` = 16 tests).
+> **STATUS: the punch list below has been applied, plus a same-day second pass for the submission
+> platform.** Contracts, UI, tests, deploy script and both handover docs were edited on 2026-08-29; §10 is
+> the changelog and the re-verification result (27/27 runtime probes green, 0 compile diagnostics,
+> `test/Keepsake.t.sol` = 16 tests, 10+11 UI smoke steps green).
 > Everything in §4 is written as *finding → fix applied*; the findings stay listed so the reasoning survives.
 
 *Generated 2026-08-29 against `29a1bee175dbd50c3bcf083188e17820725c0e5c`, the only commit reachable in this clone (it is **shallow** — upstream `main` additionally shows an `Initial commit`; do not read the 1-commit history as "no iteration happened"). Every behavioral claim below was verified by compiling the actual repo contracts and executing them in a local EVM — not by reading alone. Reproduction in Appendix B.*
@@ -407,6 +408,40 @@ handover is what that looks like at 2 hp.
 **Next:** redeploy (both addresses change), `forge test`, source-verify `HonorLog`, rehearse the reordered
 beat once, freeze. **Still out of scope, by the handover's own rules:** MUD, official EAS, tokens, money,
 SVG, fog, agents, Three.js.
+
+---
+
+### Same-day second pass, driven by the submission platform (`blitz.devnads.com`)
+
+The platform's loop turned out to be *Sign up → Build ("submit it with a live demo and repo link") → **Vote:
+rate projects on a 1 to 5 scale**. Peer voting by ~65 builders, with a required Live URL, reorders the
+priorities — so the second pass is about what a stranger can open on a laptop:
+
+- **The page no longer needs a wallet, a faucet or a paste to show something.** It boots read-only against the
+  testnet RPC (`JsonRpcProvider`; reads never depend on the wallet's provider), and when *nothing* is
+  configured it plays `web/demo-match.json` — 21 frames of a real match executed against the patched bytecode
+  in a local EVM (`script/record-demo.js`; deterministic — re-running reproduces the file byte-for-byte apart
+  from the timestamp). Each frame carries its block, its gas, both players' state and the fact it minted.
+- **Honest labelling beats a fake demo.** The preview header reads `PREVIEW · 21 RECORDED TXS · NOTHING SIGNED,
+  NOTHING SPENT`; `verify()` on a recorded UID says there is no chain to answer it; clicking a cell says it is
+  a recording instead of pretending to move. The failure mode this replaces is visible in the Blitz feed
+  itself: another team's `Live` link is `http://localhost:3000/`.
+- **A measured fee counter** (`txs · gas · ≈MON`) computed from receipts inside `fire()` — deliberately not a
+  number from a slide, because this sandbox cannot reach `testnet-rpc.monad.xyz` to price gas honestly.
+- `web/hero.png` (1200×630) is generated from the app's own palette by `script/make-hero.sh`; `SUBMISSION.md`
+  is the paste-ready card; `.monskills.json` records the chain specifics (MONSKILLS is the ecosystem's
+  agent-skill library: `npx skills add therealharpaljadeja/monskills`, topics `gas`/`concepts`/`addresses`).
+- `web/.nojekyll`, `og:image`, and a data-URI favicon, so a shared link previews as something with a name.
+
+**Verification of this pass:** 10/10 preview steps and 11/11 live steps green in the UI harness
+(`keepsake-probe/uismoke.mjs`, which loads the page's *own* module against a fake DOM and mocked ethers — the
+same harness that caught the `"0x279f"`-vs-`10143` chain-compare bug in the first version of the fix);
+`record-demo.js` reproduces the committed recording exactly; contracts untouched, so the probe suite still
+reads **27/27** and `solc` still reports 0 errors.
+
+**Not done, needs a human with repo admin:** GitHub Pages could not be enabled from this session —
+`gh api -X POST repos/…/pages` returns `403 Resource not accessible by integration` (the token has contents,
+not admin). Until someone sets Settings → Pages → `/web`, the "Live" field has nowhere to point.
 
 ---
 

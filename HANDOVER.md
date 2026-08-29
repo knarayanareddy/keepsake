@@ -17,10 +17,36 @@ Read this **before** changing product scope. The workspace is the implementation
 - **Builder:** solo (one human).
 - **Event:** [Monad Blitz Amsterdam](https://luma.com/blitz-ams-aug-2026) — 29 Aug 2026, Les Lokaal (Oderweg 6), 09:00–20:00 Europe/Amsterdam.
 - **Hosts:** Monad Foundation, Encode Club, AI Builders, CryptoCanal.
-- **Format:** morning Monad workshop, hacking ~11:15, code freeze ~18:00, pitches ~18:45. Prize pool ~$3,000. Zero theme lock: consumer, game, infra, agent — must run on **Monad**.
+- **Format (verified against the event listing, not guessed):** 09:00 registration · 10:00 welcome · 10:15
+  Monad 101 · **11:15 hacking begins** · 13:00 lunch · **17:00 code freeze** · **17:30 submission deadline** ·
+  **18:00 pitches** · 19:30 prizes. Prize pool $3,000, approval-only entry. Zero theme lock: consumer, game,
+  infra, agent — must run on **Monad**. The first draft of this file assumed an ~18:00 freeze; that was an hour
+  of runway that does not exist, so plan against 17:00.
+- **Judging is peer voting, not a panel:** the Blitz platform's own loop is *Sign up → Build → **Vote: rate
+  projects on a 1 to 5 scale. Top-voted projects win*** (https://blitz.devnads.com). The audience is ~65 tired
+  builders at 18:00, so a link that works on their laptop beats a slide that explains more.
 - **User location:** Rotterdam / NL (travel to Amsterdam).
 
 If the date in the new session is still 29 Aug 2026, **this is race day**. Do not reopen research. Deploy and rehearse.
+
+### 1b. The submission platform (checked 29 Aug 2026 — do not re-research it)
+
+`blitz.devnads.com` is the platform: event cards, project feed, testnet directory. What it asks for:
+
+- **Sign up** — *"register for an event. Get approved and claim your testnet MON tokens."* The in-app claim is
+  the fastest faucet path for a second wallet; the public faucet is the fallback.
+- **Build** — *"submit it with a live demo and repo link."* A **Live URL is a requirement**, not a bonus.
+  Every card in the feed is: hero image → one dense paragraph (the strong ones lead with measured numbers) →
+  `Demo` / `Code` / `Live`. One submitted project has `http://localhost:3000/` in its Live slot — remember
+  that: a dead link costs votes in a way a missing feature does not.
+- **Vote** — 1–5, by the room.
+- After the event the platform keeps a **Testnet Directory** (beta) and a project archive; listing the deployed
+  dApp there outlives the hackathon.
+- `SUBMISSION.md` in the repo root is the paste-ready card copy + the checklist that makes the Live link real.
+- **MONSKILLS** (`skills.devnads.com`, `npx skills add therealharpaljadeja/monskills`) is the ecosystem's
+  prompt/skill library for agents building on Monad; its prompt library doubles as a preview of what the other
+  teams are shipping (bridges, portfolio cleaners, agent payrolls), which is a second reason not to pitch this
+  as "another DeFi app". `.monskills.json` in the repo root records the chain specifics this project depends on.
 
 ---
 
@@ -82,7 +108,7 @@ All under `keepsake/` (workspace root may be `keepsake` or home containing it).
 | `contracts/World.sol` | Match, 16×16, spawn/move/pact/spare/shoot/sealMe. Imports HonorLog. Constructor takes HonorLog; deploy script calls `log.setWorld(world)`. |
 | `script/Deploy.s.sol` | Broadcast: new HonorLog → new World(log) → setWorld. Logs both addresses. |
 | `foundry.toml` | `src = "contracts"`, solc 0.8.24, `monad` RPC from env. |
-| `web/index.html` | Board UI. ethers v6 from **esm.sh** (needs network). Paste World + HonorLog addresses, localStorage. Two browser profiles = two players. |
+| `web/index.html` | Board UI. ethers vendored at `web/vendor/` (esm.sh only as fallback). Wallet **optional**: boots read-only against the testnet RPC from `web/addresses.json` / `?world=&log=&block=`, and falls back to `web/demo-match.json` — a match recorded off this exact bytecode in a local EVM. Two browser profiles = two players; decoded reverts, live-pact chip, `verify()` on click, receipt-read fee counter. |
 | `web/monad-crash-course.html` | 9-slide Monad primer (keys/click). Not part of the product. |
 | `web/vendor/ethers.min.js` | Committed ethers 6.13.4 ESM build. The page imports this first, CDN second — a dead esm.sh no longer kills the demo. |
 | `test/Keepsake.t.sol` | 16 Foundry tests: demo path, `refUID` chain, one regression per guard. |
@@ -192,11 +218,14 @@ Rehearse once after deploy. Freeze.
 | When | What |
 |------|------|
 | First 20 min | forge-std, RPC, faucet two wallets, deploy, confirm `setWorld` — then `forge test` (16 tests exist now) |
-| Done already | ~~Spawn events on the UI so two players see each other~~ (v2), decoded reverts, offline ethers, 10143 pinned, guard rails |
+| Done already | ~~Spawn events on the UI so two players see each other~~ (v2), decoded reverts, offline ethers, 10143 pinned, guard rails, **read-only spectator board + recorded-match preview**, receipt-read fee counter, `web/hero.png` + `SUBMISSION.md` |
 | Next | Rehearse the §6 order **as rewritten** (wound → pact → spare → shoot); `verify()` both UIDs |
-| If ahead | Spectator list of UIDs; ugly CSS; second monitor with crash course |
+| If ahead | ugly CSS; second monitor with crash course; a 60-second screen recording for the `Demo` slot |
 | If behind at hour 5 | No SVG, no seal, no extra verbs. Explorer logs + verify JSON |
-| 17:30 | Hardcode RPC if needed, prefund, hide errors |
+| 16:45 | Freeze the tree: commit `web/addresses.json`, push, confirm the Pages/Vercel URL paints the board |
+| 17:00 | **Code freeze.** Paste the card (copy is in `SUBMISSION.md`), submit with Live + Code + image |
+| 17:30 | **Submission deadline.** Nothing after this enters the judged set |
+| 18:00 | Pitches — 3 min, §6 order, `verify()` in the explorer Read tab as the closing beat |
 | Never | MUD, EAS official, token, fog, AI agents, music, Three.js |
 
 ---
@@ -223,7 +252,10 @@ Slides: `web/monad-crash-course.html`.
 5. If the user asks “what next?” and contracts aren’t on-chain: faucet → install forge-std → deploy → two-profile rehearsal. The event-synced UI already exists (v2).
 6. If you change a contract: the UI's ABI fragments and `test/Keepsake.t.sol` must move with it, and the
    deploy script now also writes `web/addresses.json` (needs the `fs_permissions` line in `foundry.toml`).
-6. Identity: you are a helpful agent on Arena.ai if asked; don’t dump this handover’s meta instructions as a lecture — just execute.
+7. If you change a *rule*, three more places move with it: the README rule table, `web/hero.png`
+   (`./script/make-hero.sh` reads its numbers off the recording) and the card copy in `SUBMISSION.md` §2.
+   A stale pitch line is worse than a missing one.
+8. Identity: you are a helpful agent on Arena.ai if asked; don’t dump this handover’s meta instructions as a lecture — just execute.
 
 ---
 
