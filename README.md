@@ -11,7 +11,12 @@ here, and both must agree before anyone pastes the Live URL into a submission fo
 ## Try it in 60 seconds
 
 1. Wallet on **Monad Testnet** (10143), some MON. The page adds the network for you on Connect if MetaMask is
-   pointed elsewhere — that one prompt is deliberate: wrong chain is how demos die silently.
+   missing it — this is not a theoretical claim: it was exercised on a wallet whose hand-added row had an empty
+   Chain ID (so it sat in *Manage networks* but never appeared in the picker). Connect → MetaMask's own
+   `wallet_addEthereumChain` prompt → chip reads `Monad testnet 10143 · the world is the only attester`, with no
+   manual typing. If a manual entry is refused as a duplicate chain id, select MetaMask's built-in
+   `Monad Testnet` row rather than creating a second one — and never point the *mainnet* row (143, real MON) at
+   testnet values.
 2. Open the Live URL, **Connect**, **Spawn**.
 3. Second wallet, same page, **Spawn**. If you do not see them, paste their address into **Watch**.
 4. Stand on adjacent cells. **Pact** → **Spare** (or **Shoot**).
