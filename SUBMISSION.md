@@ -12,7 +12,7 @@ clicking a link on a laptop, not for three judges reading a repo.
 | Field | Value |
 |---|---|
 | **Title** | `KEEPSAKE — the World is the only attester` |
-| **Image** | `web/hero.png` (1200×630, drawn by `script/make-hero.sh` from the app's own palette) |
+| **Image** | `web/hero.png` (1200×630, drawn by `script/make-hero.py` from the app's own palette) |
 | **Code** | `https://github.com/knarayanareddy/keepsake` |
 | **Live** | `https://<user>.github.io/keepsake/` — see §4 for the two commands that make this exist |
 | **Demo** | 60-second screen recording of the replay + one live two-wallet match (see §5) |
@@ -68,7 +68,9 @@ Then serve `web/` as the site root. Either:
 - **GitHub Pages** — Settings → Pages → Source: *Deploy from a branch* → branch `main` (or this branch) →
   folder `/web` → Save. CLI equivalent (needs admin scope on the token; the Arena sandbox got `403`):
   `gh api -X POST repos/knarayanareddy/keepsake/pages -f build_type=legacy -f source[branch]=main -f source[path]=web`
-- or `vercel --prod` in `web/` (no build step: it is one HTML file, one vendored `ethers`, one JSON).
+- or `vercel --prod` in `web/` (no build step: one HTML file, vendored `ethers`, vendored woff2 subsets, one JSON).
+- The UI follows the repo's own design brief, `AGENT_UI.md`: paper chrome, night playfield, square seals,
+  radius 0, and a HonorLog that reads as a dated docket instead of a chat log.
 
 Then confirm the four things a voter will hit: the board paints without a wallet (**read-only mode** via
 `JsonRpcProvider`), `verify()` answers for a UID from the Read tab of the explorer, `Spawned` from another

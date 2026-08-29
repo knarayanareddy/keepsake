@@ -422,18 +422,19 @@ priorities — so the second pass is about what a stranger can open on a laptop:
   configured it plays `web/demo-match.json` — 21 frames of a real match executed against the patched bytecode
   in a local EVM (`script/record-demo.js`; deterministic — re-running reproduces the file byte-for-byte apart
   from the timestamp). Each frame carries its block, its gas, both players' state and the fact it minted.
-- **Honest labelling beats a fake demo.** The preview header reads `PREVIEW · 21 RECORDED TXS · NOTHING SIGNED,
-  NOTHING SPENT`; `verify()` on a recorded UID says there is no chain to answer it; clicking a cell says it is
+- **Honest labelling beats a fake demo.** The preview header reads `Preview · 20 recorded txs, 1,532,906 gas ·
+  nothing signed, nothing spent`; `verify()` on a recorded UID says there is no chain to answer it; clicking a cell says it is
   a recording instead of pretending to move. The failure mode this replaces is visible in the Blitz feed
   itself: another team's `Live` link is `http://localhost:3000/`.
 - **A measured fee counter** (`txs · gas · ≈MON`) computed from receipts inside `fire()` — deliberately not a
   number from a slide, because this sandbox cannot reach `testnet-rpc.monad.xyz` to price gas honestly.
-- `web/hero.png` (1200×630) is generated from the app's own palette by `script/make-hero.sh`; `SUBMISSION.md`
+- `web/hero.png` (1200×630) is generated from the app's own palette by `script/make-hero.py`, which reads its
+  numbers out of the recording; `SUBMISSION.md`
   is the paste-ready card; `.monskills.json` records the chain specifics (MONSKILLS is the ecosystem's
   agent-skill library: `npx skills add therealharpaljadeja/monskills`, topics `gas`/`concepts`/`addresses`).
 - `web/.nojekyll`, `og:image`, and a data-URI favicon, so a shared link previews as something with a name.
 
-**Verification of this pass:** 10/10 preview steps and 11/11 live steps green in the UI harness
+**Verification of this pass:** 10/10 preview steps and 12/12 live steps green in the UI harness
 (`keepsake-probe/uismoke.mjs`, which loads the page's *own* module against a fake DOM and mocked ethers — the
 same harness that caught the `"0x279f"`-vs-`10143` chain-compare bug in the first version of the fix);
 `record-demo.js` reproduces the committed recording exactly; contracts untouched, so the probe suite still
@@ -442,6 +443,41 @@ reads **27/27** and `solc` still reports 0 errors.
 **Not done, needs a human with repo admin:** GitHub Pages could not be enabled from this session —
 `gh api -X POST repos/…/pages` returns `403 Resource not accessible by integration` (the token has contents,
 not admin). Until someone sets Settings → Pages → `/web`, the "Live" field has nowhere to point.
+
+### Third pass — the interface, to a brief (`AGENT_UI.md`)
+
+`AGENT_UI.md` arrived from main mid-session and is the design law for this repo, so the restyle was executed against
+its text rather than against taste. What the pass changed, and what it proved:
+
+- **Skin.** `--paper #E4D9C5` / `--ink #1C1914` / `--rule #C4B49A` / `--wax #9B2C2C` / `--moss #3F5C4A` /
+  `--gilt #8A6A22`, with `--night #1A2330` reserved for the playfield only and `--stamp` for a pressed button.
+  Radius 0 everywhere (the harness asserts it), no gradient, no blurred shadow, no pills, no pure white/black/gray,
+  type scale 12/15/19/30, tabular numerals, transitions ≤160 ms with a `prefers-reduced-motion` kill switch.
+- **The two-player gap in the brief was already closed** by `paint()`: a living pact is a gilt hairline drawn
+  between the real cell centres, and the cell containing the counterparty is framed and labelled. Pieces are
+  16×16 *squares* with a paper outline (3:1 against night) — never circles, never glow.
+- **A broken pact stays visible.** `Attested` records the scar (`addScar`, deduped by `a|b`, capped at 8) and the
+  preview walker does the same, so a betrayal survives on the board in wax after the match has forgotten it.
+- **The docket, not a chat log.** Each HonorLog entry is dated (`29.08.2026 · BLK 22`) via `provider.getBlock`,
+  kind at 19px in the register voice, parties in mono, then the UID and a `verify()` affordance. The empty state
+  is a line of paper, not a sentence of marketing.
+- **Deploy is furniture.** The address inputs and the deploy note sit in one `<details>` that `boot()` opens only
+  when nothing resolves — the read path is wired before any wallet exists, which the harness now tests first.
+- **Two places the brief and reality disagreed, resolved by measurement.** (a) §5 wanted the Pact stamp as a gilt
+  fill with paper type: `paper/gilt` is 3.61:1 and `ink/gilt` 3.48:1, both under AA for a 12px label, and §4 itself
+  says gilt is emphasis and *never* a fill — so Pact carries gilt as a 2px border on paper (ink/paper 13.9:1),
+  while Spare and Shoot keep their fills (5.06:1, 6.35:1). (b) Fonts: §4 permits a Google/IBM CDN "if the network
+  allows"; a venue network is exactly where it does not, so the four latin subsets are vendored next to `ethers`.
+- **`web/hero.png` was rebuilt in the same identity** (paper sheet, night plate, square seals, dashed wax scar, a
+  real docket entry) by a generator that now also audits its own layout for overlaps and clipping.
+
+**Verification of this pass:** `script`-extracted module parses; the DOM harness is green at **10/10 preview and
+12/12 live** steps, including "boot wires the READ path before any wallet exists" and "connect upgrades the same
+board to signing"; a 46-check stylesheet audit (tokens, ban-list, WCAG pairs derived from each rule's own
+`color`/`background`) is clean. **No rendered screenshot exists**: this sandbox has no browser binary and the
+Chrome download is blocked, so the visual claims are measurements of the CSS and of the generated PNG, not a
+picture of the running page. The check is now repo tooling: **`node script/audit-ui.mjs`** (46 assertions, zero dependencies) — run it after any
+visual change, since the brief's rules are the kind that decay silently. Contracts untouched → `verify-fixes.js` still 27/27.
 
 ---
 

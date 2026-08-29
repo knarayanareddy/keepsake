@@ -108,7 +108,7 @@ All under `keepsake/` (workspace root may be `keepsake` or home containing it).
 | `contracts/World.sol` | Match, 16×16, spawn/move/pact/spare/shoot/sealMe. Imports HonorLog. Constructor takes HonorLog; deploy script calls `log.setWorld(world)`. |
 | `script/Deploy.s.sol` | Broadcast: new HonorLog → new World(log) → setWorld. Logs both addresses. |
 | `foundry.toml` | `src = "contracts"`, solc 0.8.24, `monad` RPC from env. |
-| `web/index.html` | Board UI. ethers vendored at `web/vendor/` (esm.sh only as fallback). Wallet **optional**: boots read-only against the testnet RPC from `web/addresses.json` / `?world=&log=&block=`, and falls back to `web/demo-match.json` — a match recorded off this exact bytecode in a local EVM. Two browser profiles = two players; decoded reverts, live-pact chip, `verify()` on click, receipt-read fee counter. |
+| `web/index.html` | Board UI, skinned to `AGENT_UI.md`: paper chrome, night playfield, square seals, hairline attestation rules, radius 0; the HonorLog is a dated docket and `verify()` a definition list. ethers and the four woff2 subsets vendored at `web/vendor/` (esm.sh only as fallback; no webfont fetch). Wallet **optional**: boots read-only against the testnet RPC from `web/addresses.json` / `?world=&log=&block=`, and falls back to `web/demo-match.json` — a match recorded off this exact bytecode in a local EVM. Two browser profiles = two players; decoded reverts, live-pact chip, `verify()` on click, receipt-read fee counter. |
 | `web/monad-crash-course.html` | 9-slide Monad primer (keys/click). Not part of the product. |
 | `web/vendor/ethers.min.js` | Committed ethers 6.13.4 ESM build. The page imports this first, CDN second — a dead esm.sh no longer kills the demo. |
 | `test/Keepsake.t.sol` | 16 Foundry tests: demo path, `refUID` chain, one regression per guard. |
@@ -246,15 +246,16 @@ Slides: `web/monad-crash-course.html`.
 ## 9. Instructions to the next agent
 
 1. Treat KEEPSAKE’s rules as **frozen** unless the user asks to change product.
-2. **First engineering task:** make two wallets visible to each other via `Spawned`/`Moved`/`Shot` logs. Then deploy.
+2. ~~Make two wallets visible to each other via `Spawned`/`Moved`/`Shot` logs~~ **done**, and the `AGENT_UI.md` restyle is done too (see DEEPDIVE §10, third pass). What is left is deployment, not code.
 3. Do not add money, frameworks, or a second product.
 4. Prefer a working 16×16 + three verbs + `verify()` over architecture.
-5. If the user asks “what next?” and contracts aren’t on-chain: faucet → install forge-std → deploy → two-profile rehearsal. The event-synced UI already exists (v2).
+5. If the user asks “what next?” and contracts aren’t on-chain: faucet → install forge-std → deploy → two-profile rehearsal. The event-synced, read-only, notary-skinned UI already exists (v3).
 6. If you change a contract: the UI's ABI fragments and `test/Keepsake.t.sol` must move with it, and the
    deploy script now also writes `web/addresses.json` (needs the `fs_permissions` line in `foundry.toml`).
 7. If you change a *rule*, three more places move with it: the README rule table, `web/hero.png`
-   (`./script/make-hero.sh` reads its numbers off the recording) and the card copy in `SUBMISSION.md` §2.
-   A stale pitch line is worse than a missing one.
+   (`python3 script/make-hero.py` reads its numbers off the recording) and the card copy in `SUBMISSION.md` §2.
+   A stale pitch line is worse than a missing one. Same for the skin: `node script/audit-ui.mjs` fails if a change
+   reintroduces a radius, a gradient, a glow, an off-scale type size or a sub-AA pair.
 8. Identity: you are a helpful agent on Arena.ai if asked; don’t dump this handover’s meta instructions as a lecture — just execute.
 
 ---

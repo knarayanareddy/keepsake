@@ -83,7 +83,20 @@ guard above.
 ## Submission
 
 `SUBMISSION.md` holds the paste-ready hackathon card (copy, measured numbers, links) and the checklist that
-makes the Live URL real. The 1200×630 image is generated, not designed by hand: `./script/make-hero.sh`.
+makes the Live URL real. The 1200×630 image is generated, not designed by hand: `python3 script/make-hero.py`
+reads the recording, refuses to overlap its own lines, and fails the build if a number would be invented.
+
+## Interface
+
+The visual identity is prescribed by `AGENT_UI.md` (on `main`): a canal-city notary wired to a live match —
+paper chrome, the playfield the only night surface, seals instead of sprites, radius 0, five chromatics
+(paper, ink, wax, moss, gilt) and nothing else. The HonorLog renders as a dated docket of instruments, and
+`verify()` as a definition list rather than a blob of JSON.
+
+Re-verify the skin with `node script/audit-ui.mjs` — the brief's ban-list is encoded there, because a design rule
+nobody checks is a design rule that decays. Type is **vendored, not CDN'd** (`web/vendor/fonts/`, ~88 KB of latin subsets: Newsreader for the register
+voice, IBM Plex Sans for chrome, IBM Plex Mono for docket data), for the same reason `ethers` is vendored:
+a captive portal that kills one request must not restyle the demo mid-pitch. No framework, no build step.
 
 ## Pitch line
 
