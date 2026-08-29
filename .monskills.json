@@ -1,0 +1,30 @@
+{
+  "project": "keepsake",
+  "kind": "game primitive / attestation layer",
+  "networks_used": [
+    {
+      "name": "monad-testnet",
+      "chain_id": 10143,
+      "chain_id_hex": "0x279f",
+      "rpc": "https://testnet-rpc.monad.xyz",
+      "explorers": ["https://testnet.monadvision.com", "https://testnet.monadexplorer.com"],
+      "currency": { "symbol": "MON", "decimals": 18 },
+      "faucet": "https://testnet.monad.xyz/faucet",
+      "source_verification": {
+        "verifier": "sourcify",
+        "verifier_url": "https://sourcify-api-monad.blockvision.org",
+        "alt": "etherscan-style: https://api.monadscan.com/api"
+      },
+      "addresses_file": "web/addresses.json",
+      "contracts": ["contracts/HonorLog.sol:HonorLog", "contracts/World.sol:World"],
+      "deploy_order": ["HonorLog", "World(HonorLog)", "HonorLog.setWorld(World)"]
+    },
+    { "name": "monad", "chain_id": 143, "used": false, "why_not": "real money; this project has none and claims none" }
+  ],
+  "monskills": {
+    "install": "npx skills add therealharpaljadeja/monskills",
+    "relevant_topics": ["gas", "concepts", "addresses", "wallet-integration", "scaffold"],
+    "note": "This file records the Monad specifics KEEPSAKE depends on so that an agent or human picking the repo up does not re-derive chain ids, RPCs or explorer verifiers. It is metadata about the project, not a claim that the skills were used to write it: the contracts are hand-written and the guards are documented in DEEPDIVE.md §4 and §10."
+  },
+  "constraints": ["no tokens", "no money", "no framework", "no off-chain server", "no admin call that rewrites history"]
+}
