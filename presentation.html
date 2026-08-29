@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KEEPSAKE — Monad Blitz Interactive Pitch Deck</title>
+<meta name="description" content="Interactive 4-slide deck for KEEPSAKE on Monad Testnet. Built for Monad Blitz Amsterdam 2026." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23836EF9'/%3E%3Crect x='5' y='5' width='11' height='11' fill='%2300F5D4'/%3E%3Crect x='16' y='16' width='11' height='11' fill='%23FF477E'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #080B11;
+    --bg-card: rgba(18, 24, 38, 0.75);
+    --bg-card-hover: rgba(28, 38, 58, 0.85);
+    --border-glow: rgba(131, 110, 249, 0.25);
+    --purple-primary: #836EF9;
+    --purple-glow: rgba(131, 110, 249, 0.4);
+    --cyan-accent: #00F5D4;
+    --cyan-glow: rgba(0, 245, 212, 0.3);
+    --pink-accent: #FF477E;
+    --gold-accent: #FFD166;
+    --text-main: #F1F5F9;
+    --text-muted: #94A3B8;
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Space Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Ambient Glow Backgrounds */
+  .bg-glow {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+    animation: pulseGlow 10s ease-in-out infinite alternate;
+  }
+  .bg-glow-1 {
+    top: -10%;
+    left: -10%;
+    width: 50vw;
+    height: 50vw;
+    background: radial-gradient(circle, rgba(131, 110, 249, 0.35) 0%, rgba(0,0,0,0) 70%);
+  }
+  .bg-glow-2 {
+    bottom: -15%;
+    right: -10%;
+    width: 60vw;
+    height: 60vw;
+    background: radial-gradient(circle, rgba(0, 245, 212, 0.25) 0%, rgba(0,0,0,0) 70%);
+  }
+
+  @keyframes pulseGlow {
+    0% { transform: scale(1) translate(0, 0); opacity: 0.4; }
+    100% { transform: scale(1.15) translate(3%, 3%); opacity: 0.65; }
+  }
+
+  /* Deck Layout */
+  .deck-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header Bar */
+  header.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    background: rgba(8, 11, 17, 0.6);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 10;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.05em;
+  }
+  .brand-badge {
+    background: linear-gradient(135deg, var(--purple-primary), var(--cyan-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-tag {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(131, 110, 249, 0.12);
+    border: 1px solid var(--border-glow);
+    color: var(--purple-primary);
+  }
+
+  /* Slide Viewport */
+  .slides-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    padding: 40px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(30px) scale(0.98);
+    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), 
+                transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.5s;
+    pointer-events: none;
+  }
+
+  .slide.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  /* Grid Layouts */
+  .slide-content {
+    max-width: 1280px;
+    margin: 0 auto;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 30px;
+  }
+
+  /* Typography */
+  .slide-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .slide-pill {
+    align-self: flex-start;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 4px 12px;
+    border-radius: 6px;
+    background: rgba(0, 245, 212, 0.1);
+    color: var(--cyan-accent);
+    border: 1px solid rgba(0, 245, 212, 0.25);
+  }
+  h1.slide-title {
+    font-family: var(--font-heading);
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #FFFFFF 30%, var(--text-muted) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  p.slide-subtitle {
+    font-size: 20px;
+    color: var(--text-muted);
+    max-width: 800px;
+    line-height: 1.5;
+  }
+
+  /* Glass Cards Grid */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 10px;
+  }
+
+  .glass-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--purple-primary), var(--cyan-accent));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .glass-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-glow);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(131, 110, 249, 0.15);
+  }
+  .glass-card:hover::before {
+    opacity: 1;
+  }
+
+  .card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    background: rgba(131, 110, 249, 0.15);
+    color: var(--purple-primary);
+    border: 1px solid rgba(131, 110, 249, 0.3);
+  }
+  .card-icon.cyan {
+    background: rgba(0, 245, 212, 0.15);
+    color: var(--cyan-accent);
+    border-color: rgba(0, 245, 212, 0.3);
+  }
+  .card-icon.pink {
+    background: rgba(255, 71, 126, 0.15);
+    color: var(--pink-accent);
+    border-color: rgba(255, 71, 126, 0.3);
+  }
+  .card-icon.gold {
+    background: rgba(255, 209, 102, 0.15);
+    color: var(--gold-accent);
+    border-color: rgba(255, 209, 102, 0.3);
+  }
+
+  .card-title {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFF;
+  }
+  .card-text {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .card-text b {
+    color: #FFF;
+  }
+
+  /* Stats Counter Strip */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    background: rgba(18, 24, 38, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 10px;
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 16px;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-value {
+    font-family: var(--font-heading);
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--cyan-accent), var(--purple-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Code & Architecture Display */
+  .code-container {
+    background: #0B0E17;
+    border: 1px solid rgba(131, 110, 249, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.6;
+    color: #E2E8F0;
+    overflow-x: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .code-kw { color: var(--pink-accent); }
+  .code-fn { color: var(--cyan-accent); }
+  .code-cm { color: #64748B; font-style: italic; }
+  .code-str { color: var(--gold-accent); }
+
+  /* Slide 4 - Demo Showcase Frame */
+  .demo-showcase-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+    max-height: 520px;
+  }
+
+  .demo-frame-wrapper {
+    flex: 1;
+    background: rgba(10, 14, 23, 0.9);
+    border: 2px solid var(--purple-primary);
+    border-radius: 16px;
+    box-shadow: 0 0 40px var(--purple-glow);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .demo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+    padding: 40px;
+  }
+
+  .demo-play-button {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple-primary), var(--cyan-accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: #FFF;
+    cursor: pointer;
+    box-shadow: 0 0 30px var(--cyan-glow);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .demo-play-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 50px var(--cyan-accent);
+  }
+
+  .demo-links-bar {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--purple-primary), #6366F1);
+    color: #FFF;
+    box-shadow: 0 4px 16px rgba(131, 110, 249, 0.4);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(131, 110, 249, 0.6);
+  }
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+  }
+
+  /* Bottom Controls Rail */
+  footer.controls-rail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 40px;
+    background: rgba(8, 11, 17, 0.8);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 10;
+  }
+
+  .nav-dots {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .dot-btn {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .dot-btn.active {
+    width: 36px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--purple-primary), var(--cyan-accent));
+    box-shadow: 0 0 12px var(--purple-glow);
+  }
+
+  .nav-arrows {
+    display: flex;
+    gap: 10px;
+  }
+  .arrow-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #FFF;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .arrow-btn:hover {
+    background: var(--purple-primary);
+    border-color: var(--purple-primary);
+  }
+
+  .keyboard-hints {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  kbd {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    color: #FFF;
+  }
+
+  @media (max-width: 900px) {
+    .slides-viewport { padding: 20px; }
+    h1.slide-title { font-size: 32px; }
+    .cards-grid { grid-template-columns: 1fr; }
+    .stats-strip { grid-template-columns: 1fr 1fr; }
+    .keyboard-hints { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-glow bg-glow-1"></div>
+<div class="bg-glow bg-glow-2"></div>
+
+<div class="deck-container">
+  
+  <!-- Header Bar -->
+  <header class="top-bar">
+    <div class="brand">
+      <span class="brand-badge">KEEPSAKE</span>
+      <span style="color: rgba(255,255,255,0.3)">|</span>
+      <span style="font-size: 14px; font-weight: 500; color: var(--text-muted);">The World is the Only Attester</span>
+    </div>
+    <div class="header-tag">
+      Monad Testnet (10143)
+    </div>
+  </header>
+
+  <!-- Slide Viewport -->
+  <main class="slides-viewport">
+
+    <!-- SLIDE 1: What & Why -->
+    <section class="slide active" id="slide-1">
+      <div class="slide-content">
+        <div class="slide-header">
+          <span class="slide-pill">Slide 01 · Vision & Purpose</span>
+          <h1 class="slide-title">What We Built & Why We Built It</h1>
+          <p class="slide-subtitle">A 16×16 on-chain arena and immutable attestation protocol where facts outlive the game, and self-attestation is impossible by design.</p>
+        </div>
+
+        <div class="cards-grid">
+          <div class="glass-card">
+            <div class="card-icon">⚔️</div>
+            <h3 class="card-title">What We Built</h3>
+            <p class="card-text">
+              A real-time 16×16 strategy arena backed by an <b>EAS-shaped attestation registry</b> (<code>HonorLog.sol</code>). Every movement, pact, mercy, and betrayal is processed directly in EVM bytecode.
+            </p>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-icon pink">🛡️</div>
+            <h3 class="card-title">Why We Built It</h3>
+            <p class="card-text">
+              Blockchains record balances, not <b>moral choices</b>. Existing attestations suffer from issuer bias or require self-signatures. We created a protocol where <b>the World contract is the sole witness</b> to choices made under pressure.
+            </p>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-icon gold">📜</div>
+            <h3 class="card-title">Zero Self-Attestation</h3>
+            <p class="card-text">
+              You cannot attest yourself. <code>spare()</code> enforces a strict <code>NotKillShot</code> guard on-chain (requiring opponent HP ≤ 2). If you try to fake a mercy, <b>the EVM reverts</b>.
+            </p>
+          </div>
+        </div>
+
+        <div class="stats-strip">
+          <div class="stat-item">
+            <span class="stat-value">2</span>
+            <span class="stat-label">Smart Contracts</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">14 KB</span>
+            <span class="stat-label">Total Bytecode</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">0</span>
+            <span class="stat-label">Self-Attestations Allowed</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">100%</span>
+            <span class="stat-label">On-Chain Provenance</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: Why Monad -->
+    <section class="slide" id="slide-2">
+      <div class="slide-content">
+        <div class="slide-header">
+          <span class="slide-pill">Slide 02 · Performance & Edge</span>
+          <h1 class="slide-title">Why Monad & The Monad Edge</h1>
+          <p class="slide-subtitle">On a 12-second chain, on-chain gaming is a form submission. On Monad, it becomes a seamless, real-time interactive moment.</p>
+        </div>
+
+        <div class="cards-grid">
+          <div class="glass-card">
+            <div class="card-icon cyan">⚡</div>
+            <h3 class="card-title">303ms Block Finality</h3>
+            <p class="card-text">
+              Sub-second block times mean actions, movements, and attestation mints render <b>instantly</b> on screen. Players experience immediate feedback without waiting.
+            </p>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-icon">⛽</div>
+            <h3 class="card-title">Deterministic Billing Rule</h3>
+            <p class="card-text">
+              Monad charges the exact <b>gas_limit</b>. We engineered tight, per-verb gas caps (45k–420k), keeping spawn costs at an ultra-low <b>~0.0058 MON</b> (102 Gwei base fee).
+            </p>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-icon pink">🔀</div>
+            <h3 class="card-title">Parallel Execution Edge</h3>
+            <p class="card-text">
+              Non-conflicting player moves execute concurrently across independent storage slots, enabling smooth multi-player interaction on a shared grid without bottlenecks.
+            </p>
+          </div>
+        </div>
+
+        <div class="stats-strip">
+          <div class="stat-item">
+            <span class="stat-value">303 ms</span>
+            <span class="stat-label">Average Block Time</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">~600 ms</span>
+            <span class="stat-label">Finality Time</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">102 Gwei</span>
+            <span class="stat-label">Deterministic Base Fee</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">≈0.44 MON</span>
+            <span class="stat-label">Full Match Cost (20 txs)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: Technical Implementation -->
+    <section class="slide" id="slide-3">
+      <div class="slide-content">
+        <div class="slide-header">
+          <span class="slide-pill">Slide 03 · Architecture</span>
+          <h1 class="slide-title">How It Works: Under the Hood</h1>
+          <p class="slide-subtitle">Two minimal smart contracts, write-once attester binding, and ownerless immutable record keeping.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <div class="code-container">
+<span class="code-cm">// contracts/World.sol — Guarded Mercy Attestation</span>
+<span class="code-kw">function</span> <span class="code-fn">spare</span>(address other) <span class="code-kw">external</span> {
+  Player <span class="code-kw">storage</span> p = players[msg.sender];
+  Player <span class="code-kw">storage</span> o = players[other];
+
+  <span class="code-kw">if</span> (p.ammo == 0) <span class="code-kw">revert</span> NoAmmo();
+  <span class="code-cm">// Must have kill shot (HP <= 2 and opponent armed)</span>
+  <span class="code-kw">if</span> (o.hp > SPARE_WINDOW || o.ammo == 0) {
+    <span class="code-kw">revert</span> <span class="code-str">NotKillShot()</span>;
+  }
+
+  <span class="code-cm">// World is the ONLY authorized caller to HonorLog</span>
+  bytes32 uid = log.attest(msg.sender, other, SPARE);
+}
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="glass-card" style="padding: 20px;">
+              <h4 style="font-family: var(--font-heading); font-size: 18px; color: var(--cyan-accent); margin-bottom: 8px;">1. World.sol (Attester)</h4>
+              <p style="font-size: 14px; color: var(--text-muted);">
+                Handles game mechanics, grid movement, and strict precondition checks. Only valid strategic choices trigger attestation minting.
+              </p>
+            </div>
+
+            <div class="glass-card" style="padding: 20px;">
+              <h4 style="font-family: var(--font-heading); font-size: 18px; color: var(--purple-primary); margin-bottom: 8px;">2. HonorLog.sol (Registry)</h4>
+              <p style="font-size: 14px; color: var(--text-muted);">
+                Write-once attester pin (<code>setWorld</code>). Mints non-transferable soulbound records. Fully ownerless via <code>renounceOwner()</code>.
+              </p>
+            </div>
+
+            <div class="glass-card" style="padding: 20px;">
+              <h4 style="font-family: var(--font-heading); font-size: 18px; color: var(--gold-accent); margin-bottom: 8px;">3. Universal Verification</h4>
+              <p style="font-size: 14px; color: var(--text-muted);">
+                Any external smart contract or dApp can query <code>HonorLog.verify(uid)</code> to verify provenance, attester identity, and historical claims.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: Live Demo Transition -->
+    <section class="slide" id="slide-4">
+      <div class="slide-content">
+        <div class="slide-header" style="align-items: center; text-align: center;">
+          <span class="slide-pill">Slide 04 · Live Demo</span>
+          <h1 class="slide-title">Transitioning to Live Demo</h1>
+          <p class="slide-subtitle">See KEEPSAKE live on Monad Testnet — real-time gameplay, zero self-attestation, and instant verification.</p>
+        </div>
+
+        <div class="demo-showcase-container">
+          <div class="demo-frame-wrapper" id="demo-container">
+            <!-- Interactive Demo Embed Container -->
+            <div class="demo-placeholder" id="demo-placeholder-content">
+              <div class="demo-play-button" onclick="launchLiveApp()">▶</div>
+              <div>
+                <h3 style="font-family: var(--font-heading); font-size: 24px; color: #FFF; margin-bottom: 8px;">Live Web Application Ready</h3>
+                <p style="font-size: 15px; color: var(--text-muted); max-width: 500px;">
+                  Click to launch the live app directly in this frame, or use the links below to open in a new tab.
+                </p>
+              </div>
+            </div>
+            <iframe id="live-demo-iframe" src="" style="width: 100%; height: 100%; border: none; display: none;"></iframe>
+          </div>
+
+          <div class="demo-links-bar">
+            <a href="https://knarayanareddy.github.io/keepsake/web/" target="_blank" class="btn-action btn-primary">
+              🚀 Launch Live App
+            </a>
+            <a href="https://knarayanareddy.github.io/keepsake/web/manual.html" target="_blank" class="btn-action btn-secondary">
+              📖 View Player Manual
+            </a>
+            <a href="https://github.com/knarayanareddy/keepsake" target="_blank" class="btn-action btn-secondary">
+              💻 GitHub Repo
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Controls Rail -->
+  <footer class="controls-rail">
+    <div class="nav-dots" id="nav-dots">
+      <button class="dot-btn active" onclick="goToSlide(0)"></button>
+      <button class="dot-btn" onclick="goToSlide(1)"></button>
+      <button class="dot-btn" onclick="goToSlide(2)"></button>
+      <button class="dot-btn" onclick="goToSlide(3)"></button>
+    </div>
+
+    <div class="keyboard-hints">
+      <span>Use <kbd>←</kbd> <kbd>→</kbd> or <kbd>Space</kbd> to navigate</span>
+      <span>•</span>
+      <span>Press <kbd>F</kbd> for Fullscreen</span>
+    </div>
+
+    <div class="nav-arrows">
+      <button class="arrow-btn" onclick="prevSlide()">←</button>
+      <button class="arrow-btn" onclick="nextSlide()">→</button>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  let currentSlide = 0;
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.dot-btn');
+  const totalSlides = slides.length;
+
+  function updateSlides() {
+    slides.forEach((slide, index) => {
+      if (index === currentSlide) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+
+    dots.forEach((dot, index) => {
+      if (index === currentSlide) {
+        dot.classList.add('active');
+      } else {
+        dot.classList.remove('active');
+      }
+    });
+  }
+
+  function goToSlide(index) {
+    if (index >= 0 && index < totalSlides) {
+      currentSlide = index;
+      updateSlides();
+    }
+  }
+
+  function nextSlide() {
+    if (currentSlide < totalSlides - 1) {
+      currentSlide++;
+    } else {
+      currentSlide = 0;
+    }
+    updateSlides();
+  }
+
+  function prevSlide() {
+    if (currentSlide > 0) {
+      currentSlide--;
+    } else {
+      currentSlide = totalSlides - 1;
+    }
+    updateSlides();
+  }
+
+  function launchLiveApp() {
+    const placeholder = document.getElementById('demo-placeholder-content');
+    const iframe = document.getElementById('live-demo-iframe');
+    placeholder.style.display = 'none';
+    iframe.src = 'https://knarayanareddy.github.io/keepsake/web/';
+    iframe.style.display = 'block';
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      nextSlide();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      prevSlide();
+    } else if (e.key.toLowerCase() === 'f') {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {});
+      } else {
+        document.exitFullscreen().catch(err => {});
+      }
+    }
+  });
+
+  // Touch Swipe Support
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, false);
+
+  document.addEventListener('touchend', (e) => {
+    let touchEndX = e.changedTouches[0].screenX;
+    if (touchEndX < touchStartX - 50) {
+      nextSlide();
+    } else if (touchEndX > touchStartX + 50) {
+      prevSlide();
+    }
+  }, false);
+</script>
+
+</body>
+</html>
