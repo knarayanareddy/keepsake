@@ -14,7 +14,7 @@ clicking a link on a laptop, not for three judges reading a repo.
 | **Title** | `KEEPSAKE — the World is the only attester` |
 | **Image** | `web/hero.png` (1200×630, drawn by `script/make-hero.py` from the app's own palette) |
 | **Code** | `https://github.com/knarayanareddy/keepsake` |
-| **Live** | `https://<user>.github.io/keepsake/` — see §4 for the two commands that make this exist |
+| **Live** | `https://knarayanareddy.github.io/keepsake/` |
 | **Demo** | 60-second screen recording of the replay + one live two-wallet match (see §5) |
 | **Description** | §2 verbatim; it is written numbers-first because that is what the other submitted Blitz projects do |
 
