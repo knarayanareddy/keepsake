@@ -21,6 +21,7 @@ here, and both must agree before anyone pastes the Live URL into a submission fo
 3. Second wallet, same page, **Spawn**. If you do not see them, paste their address into **Watch**.
 4. Stand on adjacent cells. **Pact** → **Spare** (or **Shoot**).
 5. A UID appears in the docket. Paste it into `verify()` — in the page, or in the explorer's Read tab.
+6. Read [the manual, including what every error means](https://knarayanareddy.github.io/keepsake/web/manual.html) for complete player and operator guidance.
 
 Nothing on the page needs a wallet to *look*: with no wallet and no addresses it plays a recorded match
 (`web/demo-match.json`) and labels itself as exactly that.
