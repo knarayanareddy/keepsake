@@ -179,7 +179,7 @@
   <main>
     <div id="boardWrap">
       <div class="boardFrame">
-        <div class="boardHead"><span>Register of the field · 16 × 16</span><span id="fieldTag">No match sealed.</span></div>
+        <div class="boardHead"><span>Register of the field · 16 × 16</span><span id="fieldTag">reading the chain…</span></div>
         <div id="board"><div id="links"></div></div>
       </div>
       <p id="hint">Click a cell. If it is empty, you step there. If it holds a player, you target them. One cell, in any direction, including diagonal.</p>
@@ -195,7 +195,7 @@
       <div class="stat"><span>kept / spared / broke</span><span id="honour">—</span></div>
       <div class="stat"><span>match</span><span id="matchTag">—</span></div>
       <div class="stat"><span>on board</span><span id="roster">—</span></div>
-      <div class="stat"><span>txs / gas / est. fee</span><span id="bill">—</span></div>
+      <div class="stat"><span>txs / gas used / charged</span><span id="bill">—</span></div>
       <h2 id="replayHead" style="display:none">Replay <span class="tag" id="replayTag"></span></h2>
       <div id="replayBox" style="display:none">
         <div class="log" id="replayText" style="max-height:150px"></div>
@@ -411,9 +411,9 @@
         note(label + " mined in " + r.blockNumber + (cap
           ? ` · ${Number(r.gasUsed ?? 0n).toLocaleString()} of ${cap.toLocaleString()} gas (the limit is what you pay on Monad)` : ""), "live");
         try {
-          const gas = BigInt(r.gasUsed ?? 0n), price = BigInt(r.gasPrice ?? r.effectiveGasPrice ?? 0n);
-          bill.txs++; bill.gas += Number(gas); bill.wei += gas * price;
-          $("bill").textContent = `${bill.txs} tx · ${bill.gas.toLocaleString()} gas · ≈${(Number(bill.wei) / 1e18).toFixed(8)} MON`;
+          const gas = BigInt(r.gasUsed ?? 0n), paid = BigInt(r.gasLimit ?? cap ?? 0n), price = BigInt(r.gasPrice ?? r.effectiveGasPrice ?? 0n);
+          bill.txs++; bill.gas += Number(gas); bill.wei += paid * price;   // Monad bills the LIMIT, so the money follows it
+          $("bill").textContent = `${bill.txs} tx · ${bill.gas.toLocaleString()} gas used · ≈${(Number(bill.wei) / 1e18).toFixed(8)} MON charged`;
         } catch { /* receipt shape differs; the tx still landed */ }
         return r;
       } catch (e) {
@@ -491,6 +491,8 @@
       $("roster").textContent = onBoard + " in this match";
       $("hint").textContent = onBoard > 1
         ? `${onBoard} players on the field. A verb needs adjacency. Spare additionally needs them at ${window.__spareWindow ?? 2} hp or less and armed — the chain checks, not this page.`
+        : onBoard === 0
+        ? "Nobody on the board yet — Spawn to enter, then hand the other profile this URL."
         : "One player on the field. Hand the other profile this URL, or enter their address under Setup — watch.";;
     }
 
@@ -498,7 +500,8 @@
       const w = rw();
       if (!w) return;
       if (mode === "preview") return;                 // the replay owns the board in preview mode
-      try { currentMatch = await w.currentMatch(); } catch { return; }
+      try { currentMatch = await w.currentMatch(); }
+      catch { $("fieldTag").textContent = "chain read failed — retrying"; $("fieldTag").className = "tag warn"; return; }
       const addrs = new Set([norm(me), ...seen.keys()]);
       if (isAddr(target)) addrs.add(norm(target));
       for (const a of addrs) {
@@ -542,7 +545,8 @@
       $("pact").disabled  = !(canAct && inThisMatch && adjacent);
       $("spawn").disabled = !canAct;
       $("spawn").classList.toggle("primary", canAct && !(p && p.joined && p.alive));
-      $("fieldTag").textContent = currentMatch ? "match " + short(currentMatch) : "No match sealed.";
+      $("fieldTag").textContent = currentMatch ? "match " + short(currentMatch) : "no match sealed in this World yet";
+      $("fieldTag").className = "tag live";
       $("spare").disabled = !(canAct && inThisMatch && adjacent && p && p.ammo > 0 && tp && Number(tp.hp) <= (window.__spareWindow ?? 2) && Number(tp.ammo) > 0);
       $("shoot").disabled = !(canAct && inThisMatch && adjacent && p && p.ammo > 0);
       $("seal").disabled  = !(canAct && p && p.joined);

@@ -98,7 +98,12 @@ const liveUrl = (liveRow.match(/`([^`]+)`/) || [])[1] || liveRow.trim();
 ok(/^https:\/\//.test(liveUrl) && !/localhost|127\.0\.0\.1/.test(liveUrl), "Live is not localhost",
   `the card's Live field is ${liveUrl.slice(0, 46)} — https, no loopback${/TODO|<user>/.test(liveUrl) ? " (placeholder until deploy)" : ""}`);
 ok(/Try it in 60 seconds/.test(readme) && /Watch/.test(readme), "README 60-second path", "connect → spawn → watch → adjacent → pact → verify");
-ok(/Live:`[^`]*TODO|Live: `https:\/\/TODO`/.test(readme), "README has the address slots", "three TODOs a deploy has to fill — visible, not buried");
+if (fs.existsSync("web/addresses.json")) {
+  ok(!/https:\/\/TODO|0xTODO/.test(readme), "README slots are filled",
+    "addresses.json exists, so the header must carry the real URL and addresses, not the template");
+} else {
+  ok(/Live: `https:\/\/TODO`/.test(readme), "README has the address slots", "three TODOs a deploy has to fill — visible, not buried");
+}
 ok(/never `http:\/\/localhost`/.test(sub) || /never localhost/.test(sub), "localhost warned", "the sheet says out loud that a dead link loses votes");
 ok(/claim (your )?testnet MON|MON claim|in-app claim/i.test(sub + readme), "MON from the event", "the platform's own claim is the funded-wallet path, not only the public faucet");
 ok(/verify-contract|--verify/.test(sub) && /MonadVision|monadvision/.test(sub + readme), "source verification planned", "an unverified World reads as amateur on a peer-voted card");
