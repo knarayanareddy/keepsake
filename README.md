@@ -2,11 +2,15 @@
 
 A 16×16 on-chain arena. **The World is the only attester.** You cannot certify yourself — you can only be witnessed.
 
-Live: `https://knarayanareddy.github.io/keepsake/web/` · World: `0xE19D44F5c7351b28e4DAaF0cfCA944FeDC2b6bBB` · HonorLog: `0x24ce27F66C18fF10C5C6B496F64774438cB1F4BC`
-Network: **Monad Testnet**, chain id `10143` · RPC: `https://testnet-rpc.monad.xyz` · Explorer: `https://testnet.monadvision.com`
+- **Web App Live**: `https://knarayanareddy.github.io/keepsake/web/`
+- **Interactive Slide Deck**: `https://knarayanareddy.github.io/keepsake/web/presentation.html`
+- **Live Arena Demo Site**: `https://01a04e41-ce7a-7ed9-9864-3df960d3deab.arena.site/`
+- **Player & Operator Manual**: `https://knarayanareddy.github.io/keepsake/web/manual.html`
+- **Contracts (Monad Testnet 10143)**: World: `0xE19D44F5c7351b28e4DAaF0cfCA944FeDC2b6bBB` · HonorLog: `0x24ce27F66C18fF10C5C6B496F64774438cB1F4BC`
+- **Attester Security**: Owner renounced on `HonorLog` (`renounceOwner()` tx `0xe70a79803a228f2cd4370a3eed52fbadf10448440f0eb5d77ec3b660ef612304`). Write-once attester pin is permanently ownerless.
 
 The template slots are filled by the commit `script/Deploy.s.sol` writes: they belong in `web/addresses.json` *and*
-here, and both must agree before anyone pastes the Live URL into a submission form.
+here, and both agree on Monad Testnet (10143).
 
 ## Try it in 60 seconds
 
